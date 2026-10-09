@@ -1,13 +1,13 @@
 # Menjalankan di VPS Ubuntu/Debian
 
-Mode VPS memakai port tetap 8080, hanya mendengarkan 127.0.0.1, dan mengabaikan folder dari browser. Jalankan satu instance aplikasi untuk setiap folder data.
+Mode VPS memakai port tetap 6666, hanya mendengarkan 127.0.0.1, dan mengabaikan folder dari browser. Jalankan satu instance aplikasi untuk setiap folder data.
 
 ```bash
 sudo apt update
 sudo apt install python3-venv ffmpeg
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python app.py --vps --port 8080 --download-dir /srv/video-downloader-data
+.venv/bin/python app.py --vps --port 6666 --download-dir /srv/video-downloader-data
 ```
 
 Folder data harus bisa ditulis oleh pengguna yang menjalankan aplikasi. Gunakan pengguna Linux khusus, bukan root. Script `.command` ditujukan untuk macOS; di Linux gunakan Python langsung.
@@ -37,7 +37,7 @@ After=network-online.target
 Type=simple
 User=downloader
 WorkingDirectory=/opt/iddownloader
-ExecStart=/opt/iddownloader/.venv/bin/python app.py --vps --port 8080 --download-dir /srv/video-downloader-data
+ExecStart=/opt/iddownloader/.venv/bin/python app.py --vps --port 6666 --download-dir /srv/video-downloader-data
 Restart=on-failure
 RestartSec=5
 KillMode=control-group
@@ -56,7 +56,7 @@ sudo journalctl -u video-downloader -n 50 --no-pager
 
 ## Cloudflare Tunnel
 
-Pada tunnel akun yang memiliki domain, arahkan hostname ke HTTP `127.0.0.1:8080`, dengan HTTP Host Header `127.0.0.1:8080`. Lindungi seluruh hostname dengan Cloudflare Access sebelum dipublikasikan. Jangan buka port 8080 ke Internet. Token aplikasi bukan login pengguna: halaman utama memberikan token kepada pengunjung yang bisa mengaksesnya.
+Pada tunnel akun yang memiliki domain, arahkan hostname ke HTTP `127.0.0.1:6666`, dengan HTTP Host Header `127.0.0.1:6666`. Lindungi seluruh hostname dengan Cloudflare Access sebelum dipublikasikan. Jangan buka port 6666 ke Internet. Token aplikasi bukan login pengguna: halaman utama memberikan token kepada pengunjung yang bisa mengaksesnya.
 
 ## Batasan VPS saat ini
 

@@ -410,7 +410,7 @@ def main():
                 RETENTION.sweep()
                 time.sleep(15)
         threading.Thread(target=cleanup_worker, daemon=True).start()
-    port = args.port or (8080 if args.vps else 0)
+    port = args.port or (6666 if args.vps else 0)
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     url = 'http://127.0.0.1:' + str(server.server_port)
     print('Video Downloader: ' + url, flush=True)
