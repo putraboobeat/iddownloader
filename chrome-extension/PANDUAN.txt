@@ -1,0 +1,68 @@
+IDLIX DOWNLOADER COMPANION — PANDUAN
+
+PASANG SEKALI
+1. Buka Google Chrome dan ketik chrome://extensions di bilah alamat.
+2. Aktifkan Developer mode / Mode developer di kanan atas.
+3. Klik Load unpacked / Muat yang belum dipaketkan.
+4. Pilih folder chrome-extension (folder yang berisi manifest.json).
+5. Klik ikon puzzle Chrome, lalu pin IDLIX Downloader Companion.
+
+CARA PAKAI
+1. Jalankan Mulai.command pada folder aplikasi IDLIX Downloader.
+2. Salin alamat aplikasi yang terbuka, misalnya http://127.0.0.1:51563.
+3. Buka halaman film di Chrome biasa. Jika tab sudah terbuka sebelum ekstensi
+   dipasang, muat ulang halaman.
+4. Selesaikan CAPTCHA sendiri. Putar video, lewati iklan seperti biasa.
+5. Aktifkan subtitle di pemutar jika ingin mengambil subtitle juga.
+6. Saat film mulai diputar, klik ikon ekstensi pada tab film tersebut.
+7. Isi Alamat aplikasi lokal. Alamat ini disimpan untuk pemakaian berikutnya;
+   perbarui jika aplikasi dibuka ulang dengan port berbeda.
+8. Klik Perbarui daftar. Playlist utama config-….json terbaru dipilih otomatis.
+   Klik Ganti sumber (opsional) hanya jika pilihan otomatis bukan film.
+   Nama file saja bukan jaminan: daftar juga bisa berisi iklan atau playlist
+   kualitas tertentu. Bersihkan hasil iklan sebelum memutar film bila perlu.
+9. Pilih subtitle jika tersedia, kemudian klik Kirim ke Downloader.
+10. Aplikasi terbuka dengan tautan terisi. Pilih kualitas dan folder,
+    lalu klik Mulai unduh. Tidak perlu Inspect Element atau Playwright.
+
+SUBTITLE SAJA
+Pilih subtitle dalam ekstensi lalu klik Kirim subtitle saja.
+
+JIKA KOSONG ATAU GAGAL
+- Gunakan ekstensi pada tab film, bukan pada tab aplikasi lokal.
+- Muat ulang halaman lalu putar lagi; permintaan sebelum ekstensi terpasang
+  tidak bisa dideteksi secara retroaktif.
+- Ekstensi mendukung domain idlixku.com dan majorplay.net beserta subdomainnya.
+  Domain pemutar lain belum dicakup oleh izin ekstensi ini.
+- Ekstensi mengamati URL dan tipe respons, bukan isi respons; JSON biasa
+  tidak otomatis dianggap playlist kecuali namanya config-….json.
+- Tautan dapat kedaluwarsa. Putar ulang dan ambil hasil terbaru.
+- Ekstensi tidak melewati CAPTCHA, membaca cookie, atau menyalin sesi login.
+  Tautan yang membutuhkan cookie atau akses khusus masih bisa ditolak server.
+- Versi aplikasi lama tidak mendukung pengisian otomatis. Gunakan index.html
+  terbaru yang disertakan pada proyek ini.
+
+PRIVASI
+Daftar kandidat disimpan hanya selama sesi Chrome, maksimal 60 per tab dan
+hanya ditampilkan untuk satu jam terakhir. Tab ditutup: daftar dihapus.
+Hanya alamat aplikasi lokal disimpan secara permanen. URL bertoken tidak
+muncul pada label daftar. URL dipindahkan ke aplikasi melalui fragmen alamat
+hanya setelah klik pengguna, lalu aplikasi menghapus fragmen setelah dibaca.
+Tidak ada pengiriman ke layanan pihak ketiga oleh ekstensi.
+
+PREVIEW ISI PLAYLIST / JSON
+Klik Preview isi playlist / JSON setelah sumber terpilih. Ekstensi membaca ulang
+URL dan menampilkan maksimal 256 KB sebagai teks, dengan token disamarkan.
+Playlist utama menampilkan resolusi yang tersedia. JSON biasa dirapikan.
+Jika HTTP 403 atau timeout, preview tidak dapat diverifikasi. Memutar video
+di tab tidak menjamin permintaan ulang dari ekstensi diterima server.
+
+PANEL DOWNLOAD OTOMATIS (v1.3)
+Setelah playlist config terdeteksi, panel merah hitam muncul di pojok kanan
+bawah halaman IDLIX. Klik Download video untuk membuka form aplikasi.
+Subtitle Indonesia dari sumber video yang sama dipilih bila terdeteksi.
+Isi atau ubah Alamat aplikasi pada panel jika port aplikasi berubah.
+Tombol X menyembunyikan panel sampai halaman dimuat ulang. Panel tidak
+melewati iklan/CAPTCHA dan tidak memulai unduhan tanpa klik pengguna.
+Setelah memperbarui ekstensi, klik Reload di chrome://extensions lalu
+muat ulang halaman film.

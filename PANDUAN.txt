@@ -1,0 +1,58 @@
+VIDEO DOWNLOADER — MAC
+
+1. Simpan semua file dalam satu folder. Pastikan Google Chrome terpasang.
+2. Untuk pemasangan pertama, klik dua kali Pasang.command (perlu internet).
+3. Klik dua kali Mulai.command. Program terbuka di browser.
+4. Tempel ALAMAT HALAMAN FILM. Tidak perlu membuka Inspect Element.
+5. Pilih kualitas, nama file, dan folder, lalu klik Unduh video.
+6. Jendela Chrome khusus terbuka. Program mencoba memutar video dan mencari
+   playlist otomatis, termasuk playlist berakhiran .json di dalam pemutar.
+7. Jika situs meminta verifikasi atau klik Play, lakukan di jendela tersebut.
+   Pencarian berlangsung hingga 90 detik. Jika gagal, klik Unduh video lagi.
+8. Setelah ditemukan, unduhan dimulai otomatis. Hentikan membatalkan proses
+   pencarian maupun unduhan. Jendela khusus ditutup setelah proses selesai.
+9. Tautan MP4/M3U8/MPD/JSON langsung tetap bisa digunakan. Untuk tautan
+   tanpa ekstensi, pilih Pengaturan tambahan > Tautan video / playlist langsung.
+10. Biarkan Terminal terbuka. Control+C untuk menutup program.
+
+JIKA MULAI.COMMAND TIDAK BISA DIKLIK DUA KALI
+Buka Terminal. Ketik bash diikuti satu spasi, seret Mulai.command dari Finder
+ke Terminal, lalu Enter. Tidak perlu mengubah pengaturan keamanan macOS.
+
+KEBUTUHAN
+- Python 3.10 atau lebih baru.
+- Google Chrome dan Playwright (dipasang melalui Pasang.command).
+- yt-dlp dan FFmpeg. Program menggunakan instalasi yang sudah tersedia.
+- Instal/perbarui yt-dlp: python3 -m pip install -U yt-dlp
+- Jika memakai Homebrew: brew install yt-dlp ffmpeg
+- Jika brew belum tersedia, panduan resmi ada di https://brew.sh
+- Python untuk Mac: https://www.python.org/downloads/macos/
+
+CATATAN
+- Program ini berjalan lokal di 127.0.0.1. URL tidak dikirim ke layanan lain
+  selain server sumber video dan sumber turunannya untuk proses unduh.
+- Chrome memakai sesi sementara, terpisah dari profil Chrome pribadi.
+- Cookie sesi pencarian disimpan sementara dengan akses terbatas untuk unduhan,
+  lalu dihapus setelah proses berakhir.
+- Token tidak disimpan dalam konfigurasi. URL ditampilkan sebagai [URL] di log.
+- Format tautan Markdown yang tidak sengaja ditempel dibersihkan otomatis.
+- Progres ditampilkan per aliran: video dahulu, kemudian audio, lalu digabung.
+- Kualitas maksimal mengikuti yang tersedia pada sumber; tidak menaikkan resolusi.
+- Unduhan yang dihentikan menyimpan file sementara. Gunakan URL aktif,
+  nama, kualitas, dan folder yang sama untuk mencoba melanjutkan.
+- File MP4 selesai yang sudah ada tidak ditimpa; unduhan baru diberi waktu tambahan.
+- Error 401/403: server menolak akses. Coba kembali menggunakan alamat
+  halaman film agar program mencari playlist terbaru. Program tidak dapat menjamin akses jika server menolak
+  pengunduh eksternal, token kedaluwarsa, atau konten memakai DRM.
+- Subtitle VTT/SRT yang terdeteksi saat pencarian diunduh secara otomatis jika
+  opsi subtitle dicentang. Aktifkan subtitle di pemutar agar permintaannya terlihat.
+- Untuk subtitle saja, tempel tautan VTT/SRT di kolom utama dan klik Mulai unduh.
+- Tautan subtitle tambahan bisa diisi untuk mengunduh bersama video.
+- Subtitle disimpan terpisah, misalnya Video.id.vtt, di folder video. File yang
+  sudah ada tidak ditimpa. Subtitle yang tidak ditemukan dilaporkan di detail.
+- Tidak ada kredensial/URL film dalam paket.
+- UI di browser, proses unduhan di komputer; bukan aplikasi .app bertanda tangan.
+
+SUMBER TEKNIS
+https://github.com/yt-dlp/yt-dlp
+https://ffmpeg.org/
