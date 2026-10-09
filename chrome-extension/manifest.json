@@ -6,11 +6,16 @@
   "permissions": [
     "webRequest",
     "storage",
-    "activeTab"
+    "activeTab",
+    "cookies"
   ],
   "host_permissions": [
     "https://*.idlixku.com/*",
-    "https://*.majorplay.net/*"
+    "https://*.majorplay.net/*",
+    "https://*.instagram.com/*",
+    "https://*.youtube.com/*",
+    "https://*.tiktok.com/*",
+    "*://*/*"
   ],
   "background": {
     "service_worker": "background.js"

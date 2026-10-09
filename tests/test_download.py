@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from http.server import ThreadingHTTPServer
 import threading
@@ -141,5 +142,102 @@ class DownloadEndpointTests(unittest.TestCase):
             server.server_close()
 
 
+    def test_download_http_range_and_stream(self):
+        with tempfile.TemporaryDirectory() as vps_root:
+            app.VPS_ROOT = Path(vps_root)
+            job_folder = app.VPS_ROOT / 'job-range'
+            job_folder.mkdir()
+            (job_folder / 'Sample.mp4').write_bytes(b'0123456789ABCDEF')
+
+            server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            port = server.server_port
+            base = f'http://127.0.0.1:{port}'
+
+            try:
+                # Test Range: bytes=4-9 (expect 6 bytes '456789')
+                url = f'{base}/download/job-range/Sample.mp4'
+                req = urllib.request.Request(url, headers={'Host': f'127.0.0.1:{port}', 'Range': 'bytes=4-9'})
+                with urllib.request.urlopen(req) as resp:
+                    self.assertEqual(resp.status, 206)
+                    self.assertEqual(resp.headers.get('Content-Range'), 'bytes 4-9/16')
+                    self.assertEqual(resp.headers.get('Content-Length'), '6')
+                    self.assertEqual(resp.read(), b'456789')
+
+                # Test stream endpoint (inline disposition)
+                url_stream = f'{base}/stream/job-range/Sample.mp4'
+                req_stream = urllib.request.Request(url_stream, headers={'Host': f'127.0.0.1:{port}'})
+                with urllib.request.urlopen(req_stream) as resp:
+                    self.assertEqual(resp.status, 200)
+                    self.assertEqual(resp.headers.get('Content-Disposition'), 'inline')
+                    self.assertEqual(resp.read(), b'0123456789ABCDEF')
+            finally:
+                app.VPS_ROOT = None
+                server.shutdown()
+                server.server_close()
+
+    def test_cookies_and_disk_endpoints(self):
+        server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_port
+        base = f'http://127.0.0.1:{port}'
+
+        try:
+            # Test disk-info
+            req_disk = urllib.request.Request(
+                f'{base}/disk-info',
+                headers={'X-App-Token': app.TOKEN}
+            )
+            with urllib.request.urlopen(req_disk) as resp:
+                self.assertEqual(resp.status, 200)
+                info = json.loads(resp.read())
+                self.assertIn('free_gb', info)
+                self.assertIn('total_gb', info)
+
+            # Test upload-cookies
+            cookie_content = ".instagram.com\tTRUE\t/\tTRUE\t0\tsessionid\t1234567890"
+            req_upload = urllib.request.Request(
+                f'{base}/upload-cookies',
+                data=cookie_content.encode('utf-8'),
+                headers={'X-App-Token': app.TOKEN, 'Content-Type': 'text/plain'}
+            )
+            with urllib.request.urlopen(req_upload) as resp:
+                self.assertEqual(resp.status, 200)
+                res = json.loads(resp.read())
+                self.assertTrue(res.get('ok'))
+                self.assertTrue(res.get('has_instagram'))
+
+            # Test cookies-status
+            req_status = urllib.request.Request(
+                f'{base}/cookies-status',
+                headers={'X-App-Token': app.TOKEN}
+            )
+            with urllib.request.urlopen(req_status) as resp:
+                self.assertEqual(resp.status, 200)
+                c_stat = json.loads(resp.read())
+                self.assertTrue(c_stat.get('loaded'))
+                self.assertTrue(c_stat.get('has_instagram'))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_ytdlp_sections_and_instagram(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = {
+                'urls': ['https://www.instagram.com/reel/123/'],
+                'folder': tmp,
+                'start_time': '00:00:10',
+                'end_time': '00:01:30'
+            }
+            cmd, folder, batch_file = app.build_ytdlp_command(data)
+            self.assertIn('--download-sections', cmd)
+            self.assertIn('*00:00:10-00:01:30', cmd)
+            self.assertIn('--add-header', cmd)
+            self.assertIn('Referer:https://www.instagram.com/', cmd)
+
+
 if __name__ == '__main__':
     unittest.main()
+

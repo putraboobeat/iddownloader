@@ -27,6 +27,7 @@ TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False, 'files': []}
 PROCESS = None
+COOKIES_PATH = None  # Path ke file cookies.txt untuk Instagram/TikTok/YouTube
 
 def get_job_files(folder_path, job_id=''):
     folder = Path(folder_path).resolve()
@@ -145,6 +146,41 @@ def build_ytdlp_command(data):
             cmd += ['-N', str(concurrent)]
     except (ValueError, TypeError):
         pass
+
+    raw_urls = data.get('urls') or [data.get('url', '')]
+    if isinstance(raw_urls, str):
+        parsed_urls = [u.strip() for u in raw_urls.splitlines() if u.strip()]
+    else:
+        parsed_urls = [str(u).strip() for u in raw_urls if str(u).strip()]
+    is_instagram = any('instagram.com' in u.lower() for u in parsed_urls)
+    is_tiktok = any('tiktok.com' in u.lower() for u in parsed_urls)
+
+    # Gunakan cookies.txt jika ada (wajib untuk Instagram, TikTok private, YouTube login)
+    if COOKIES_PATH and Path(COOKIES_PATH).is_file():
+        cmd += ['--cookies', str(COOKIES_PATH)]
+        add_log('Menggunakan cookies.txt untuk autentikasi media sosial.')
+    elif not VPS_ROOT and sys.platform in ('darwin', 'win32') and is_instagram:
+        cmd += ['--cookies-from-browser', 'chrome']
+        add_log('Mencoba membaca sesi Instagram dari Chrome lokal…')
+
+    # Tambahkan User-Agent modern agar tidak diblokir sebagai bot
+    cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
+    if is_instagram:
+        cmd += ['--add-header', 'Referer:https://www.instagram.com/']
+        cmd += ['--add-header', 'Sec-Fetch-Site:same-origin']
+        cmd += ['--add-header', 'Sec-Fetch-Mode:cors']
+
+    # Tambahkan sleep antar request jika batch unduhan atau media sosial
+    if len(parsed_urls) > 1 or is_instagram:
+        cmd += ['--sleep-requests', '1.5', '--sleep-interval', '2', '--max-sleep-interval', '5']
+
+    start_time = str(data.get('start_time', '')).strip()
+    end_time = str(data.get('end_time', '')).strip()
+    if start_time or end_time:
+        s = start_time or '00:00:00'
+        e = end_time or 'inf'
+        cmd += ['--download-sections', f'*{s}-{e}', '--force-keyframes-at-cuts']
+        add_log(f'Memotong bagian video: {s} sampai {e}')
 
     media_type = data.get('media_type', 'video')
     if media_type == 'audio':
@@ -524,8 +560,70 @@ class Handler(BaseHTTPRequestHandler):
             snapshot['retention_seconds'] = 3600 if VPS_ROOT else 0
             snapshot['tools'] = {'yt': bool(downloader()), 'ffmpeg': bool(shutil.which('ffmpeg'))}
             self.send(snapshot)
-        elif self.path.startswith('/download/'):
-            raw_path = self.path[len('/download/'):].split('?', 1)[0]
+        elif self.path == '/cookies-status' and self.authorized():
+            loaded = bool(COOKIES_PATH and Path(COOKIES_PATH).is_file())
+            stat = {'loaded': loaded, 'path': COOKIES_PATH or ''}
+            if loaded:
+                try:
+                    txt = Path(COOKIES_PATH).read_text(errors='ignore')
+                    stat['size'] = len(txt)
+                    stat['has_instagram'] = 'instagram.com' in txt
+                    stat['has_tiktok'] = 'tiktok.com' in txt
+                    stat['has_youtube'] = 'youtube.com' in txt
+                except Exception:
+                    pass
+            self.send(stat)
+        elif self.path == '/disk-info' and self.authorized():
+            try:
+                check_path = VPS_ROOT if VPS_ROOT else Path.home()
+                total, used, free = shutil.disk_usage(check_path)
+                self.send({
+                    'total_gb': round(total / (1024**3), 1),
+                    'free_gb': round(free / (1024**3), 1),
+                    'used_gb': round(used / (1024**3), 1),
+                    'percent_used': round((used / total) * 100, 1)
+                })
+            except Exception as exc:
+                self.send({'error': str(exc)}, 500)
+        elif self.path.startswith('/inspect') and self.authorized():
+            from urllib.parse import parse_qs
+            qs = parse_qs(urlsplit(self.path).query)
+            target_url = clean_url((qs.get('url') or [''])[0])
+            if not target_url:
+                return self.send({'error': 'URL tidak valid'}, 400)
+            cmd = [downloader() or 'yt-dlp', '--dump-single-json', '--no-playlist', '--socket-timeout', '10']
+            if COOKIES_PATH and Path(COOKIES_PATH).is_file():
+                cmd += ['--cookies', str(COOKIES_PATH)]
+            elif not VPS_ROOT and sys.platform in ('darwin', 'win32') and 'instagram.com' in target_url:
+                cmd += ['--cookies-from-browser', 'chrome']
+            cmd.append(target_url)
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                if proc.returncode == 0 and proc.stdout:
+                    info = json.loads(proc.stdout)
+                    res_set = set()
+                    for f in info.get('formats', []):
+                        h = f.get('height')
+                        if h and h not in res_set:
+                            res_set.add(h)
+                    result = {
+                        'title': info.get('title') or 'Video',
+                        'duration': info.get('duration_string') or info.get('duration'),
+                        'thumbnail': info.get('thumbnail'),
+                        'uploader': info.get('uploader'),
+                        'formats': sorted(list(res_set), reverse=True)
+                    }
+                    self.send({'ok': True, 'info': result})
+                else:
+                    self.send({'error': proc.stderr[:300] if proc.stderr else 'Gagal menganalisis URL.'}, 400)
+            except subprocess.TimeoutExpired:
+                self.send({'error': 'Waktu analisis habis (timeout 15s).'}, 408)
+            except Exception as exc:
+                self.send({'error': str(exc)}, 500)
+        elif self.path.startswith('/download/') or self.path.startswith('/stream/'):
+            is_stream = self.path.startswith('/stream/')
+            prefix = '/stream/' if is_stream else '/download/'
+            raw_path = self.path[len(prefix):].split('?', 1)[0]
             parts = raw_path.split('/', 1)
             if len(parts) != 2:
                 return self.send({'error': 'Format URL unduhan tidak valid'}, 400)
@@ -554,10 +652,54 @@ class Handler(BaseHTTPRequestHandler):
             if filename.lower().endswith(('.srt', '.vtt')):
                 ctype = 'text/plain; charset=utf-8'
             file_size = target.stat().st_size
+            disp = 'inline' if is_stream else f'attachment; filename="{filename}"'
+
+            range_header = self.headers.get('Range')
+            if range_header and range_header.strip().startswith('bytes='):
+                try:
+                    range_val = range_header.strip()[6:].strip()
+                    if '-' in range_val:
+                        p = range_val.split('-', 1)
+                        s_str, e_str = p[0].strip(), p[1].strip()
+                        start = int(s_str) if s_str else None
+                        end = int(e_str) if e_str else None
+                        if start is None and end is not None:
+                            start = max(0, file_size - end)
+                            end = file_size - 1
+                        elif start is not None and end is None:
+                            end = file_size - 1
+                        elif start is not None and end is not None:
+                            end = min(end, file_size - 1)
+                        
+                        if start is not None and end is not None and 0 <= start <= end < file_size:
+                            content_length = end - start + 1
+                            self.send_response(206)
+                            self.send_header('Content-Type', ctype)
+                            self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                            self.send_header('Content-Length', str(content_length))
+                            self.send_header('Accept-Ranges', 'bytes')
+                            self.send_header('Content-Disposition', disp)
+                            self.send_header('Cache-Control', 'no-store')
+                            self.end_headers()
+                            with open(target, 'rb') as f:
+                                f.seek(start)
+                                rem = content_length
+                                chunk_size = 64 * 1024
+                                while rem > 0:
+                                    buf = f.read(min(rem, chunk_size))
+                                    if not buf:
+                                        break
+                                    self.wfile.write(buf)
+                                    rem -= len(buf)
+                            return
+                except (ValueError, OSError, ConnectionResetError, BrokenPipeError):
+                    pass
+
             self.send_response(200)
             self.send_header('Content-Type', ctype)
-            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.send_header('Content-Disposition', disp)
             self.send_header('Content-Length', str(file_size))
+            self.send_header('Accept-Ranges', 'bytes')
             self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             try:
@@ -573,14 +715,63 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host() or not self.authorized():
             return self.send({'error': 'Akses ditolak'}, 403)
         try:
+            if self.path == '/upload-cookies':
+                global COOKIES_PATH
+                size = int(self.headers.get('Content-Length', 0))
+                if size <= 0 or size > 5 * 1024 * 1024:
+                    return self.send({'error': 'Ukuran file tidak valid (maksimal 5MB).'}, 400)
+                raw = self.rfile.read(size)
+                text = ""
+                try:
+                    data = json.loads(raw)
+                    if isinstance(data, dict) and 'cookies' in data:
+                        text = str(data['cookies'])
+                except Exception:
+                    pass
+                if not text:
+                    text = raw.decode('utf-8', errors='replace')
+                    if '----------------------------' in text:
+                        parts = text.split('\r\n\r\n', 1)
+                        if len(parts) == 2:
+                            text = parts[1].split('\r\n----------------------------')[0]
+                text = text.strip()
+                if not text:
+                    return self.send({'error': 'Konten cookies kosong.'}, 400)
+                base = VPS_ROOT if VPS_ROOT else (Path.home() / '.cookies')
+                cookies_dir = base if base.name == '.cookies' else (base / '.cookies')
+                cookies_dir.mkdir(parents=True, exist_ok=True)
+                cookies_file = cookies_dir / 'media_cookies.txt'
+                cookies_file.write_text(text, encoding='utf-8')
+                COOKIES_PATH = str(cookies_file)
+                add_log(f'Cookies media sosial berhasil disimpan ({len(text)} karakter).')
+                return self.send({
+                    'ok': True,
+                    'message': 'Cookies berhasil disimpan! Sesi media sosial aktif.',
+                    'has_instagram': 'instagram.com' in text,
+                    'has_tiktok': 'tiktok.com' in text,
+                    'has_youtube': 'youtube.com' in text
+                })
+
+            if self.path == '/update-ytdlp':
+                def update_worker():
+                    add_log('Memulai pengecekan & pembaruan yt-dlp…')
+                    yt = downloader() or 'yt-dlp'
+                    res = subprocess.run([yt, '-U'], capture_output=True, text=True)
+                    out = (res.stdout + '\n' + res.stderr).strip()
+                    if 'ERROR: You installed yt-dlp with pip' in out or res.returncode != 0:
+                        res2 = subprocess.run([sys.executable, '-m', 'pip', 'install', '-U', 'yt-dlp'], capture_output=True, text=True)
+                        out += '\n' + (res2.stdout + '\n' + res2.stderr).strip()
+                    add_log(f'Log pembaruan yt-dlp:\n{out}')
+                threading.Thread(target=update_worker, daemon=True).start()
+                return self.send({'ok': True, 'message': 'Pembaruan yt-dlp dijalankan di latar belakang.'})
+
             size = int(self.headers.get('Content-Length', 0))
-            if not 0 <= size <= 32768:
+            if not 0 <= size <= 65536:
                 raise ValueError('Input terlalu besar.')
             data = json.loads(self.rfile.read(size) or b'{}')
             if not isinstance(data, dict):
                 raise ValueError('Input tidak valid.')
             if self.path == '/start':
-                # Never accept internal cookie paths or captured headers from HTTP clients.
                 allowed_keys = (
                     'url', 'name', 'quality', 'folder', 'referer', 'forward', 'mode',
                     'subtitles', 'subtitle_url',
@@ -588,7 +779,7 @@ class Handler(BaseHTTPRequestHandler):
                     'resolution', 'write_subs', 'auto_subs', 'embed_subs', 'sub_lang',
                     'embed_thumb', 'write_thumb', 'embed_metadata', 'embed_chapters',
                     'playlist_start', 'playlist_end', 'max_downloads', 'concurrent_fragments',
-                    'ignore_errors', 'custom_args'
+                    'ignore_errors', 'custom_args', 'start_time', 'end_time'
                 )
                 data = {key: data[key] for key in allowed_keys if key in data}
                 if VPS_ROOT:
@@ -645,12 +836,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send({'error': str(exc)}, 400)
 
 def main():
-    global RETENTION, VPS_ROOT
+    global RETENTION, VPS_ROOT, COOKIES_PATH
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
     parser.add_argument('--vps', action='store_true', help='Isolated downloads, automatically removed after one hour')
     parser.add_argument('--port', type=int, default=0)
     parser.add_argument('--download-dir', default=str(Path.home() / 'video-downloader-data'))
+    parser.add_argument('--cookies-path', default='', help='Path ke file cookies.txt untuk Instagram/medsos')
     args = parser.parse_args()
     if args.vps:
         VPS_ROOT = Path(args.download_dir).expanduser().resolve()
@@ -661,6 +853,21 @@ def main():
                 RETENTION.sweep()
                 time.sleep(15)
         threading.Thread(target=cleanup_worker, daemon=True).start()
+    # Load cookies dari argumen CLI jika diberikan
+    if args.cookies_path:
+        cp = Path(args.cookies_path).expanduser().resolve()
+        if cp.is_file():
+            COOKIES_PATH = str(cp)
+            print(f'Cookies media sosial dimuat dari: {cp}', flush=True)
+        else:
+            print(f'PERINGATAN: File cookies tidak ditemukan di {cp}', flush=True)
+    # Auto-detect cookies dari lokasi default di folder data
+    if not COOKIES_PATH:
+        base = VPS_ROOT if VPS_ROOT else Path.home()
+        auto_cookies = base / '.cookies' / 'media_cookies.txt'
+        if auto_cookies.is_file():
+            COOKIES_PATH = str(auto_cookies)
+            print(f'Cookies media sosial otomatis dimuat dari: {auto_cookies}', flush=True)
     port = args.port or (6666 if args.vps else 0)
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     url = 'http://127.0.0.1:' + str(server.server_port)
