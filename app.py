@@ -295,13 +295,13 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == '/extension.zip':
-            archive = Path(__file__).with_name('IDLIX-Chrome-Extension.zip')
+            archive = Path(__file__).with_name('Video-Downloader-Extension.zip')
             if not archive.exists():
                 return self.send({'error': 'Paket ekstensi belum tersedia.'}, 404)
             body = archive.read_bytes()
             self.send_response(200)
             self.send_header('Content-Type', 'application/zip')
-            self.send_header('Content-Disposition', 'attachment; filename="IDLIX-Chrome-Extension.zip"')
+            self.send_header('Content-Disposition', 'attachment; filename="Video-Downloader-Extension.zip"')
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)

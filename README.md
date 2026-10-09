@@ -1,4 +1,4 @@
-# IDLIX Downloader
+# Video Downloader
 
 Aplikasi lokal untuk mengunduh video dan subtitle, dengan ekstensi pendamping Chrome. Antarmuka berbahasa Indonesia bertema merah–hitam.
 
@@ -32,7 +32,7 @@ python3 -m venv .venv
 5. Panel otomatis menyediakan Copy link JSON atau Kirim ke Downloader.
 6. Playlist config diprioritaskan dan subtitle Indonesia dari sumber yang sama dipilih bila terdeteksi. Periksa sumber jika hasil yang ditemukan adalah iklan.
 
-Paket `IDLIX-Chrome-Extension.zip` juga tersedia dari tombol unduh ekstensi pada aplikasi. Pemasangan lewat Chrome Web Store belum tersedia. Detail: `chrome-extension/PANDUAN.txt` dan panduan dalam aplikasi.
+Paket `Video-Downloader-Extension.zip` juga tersedia dari tombol unduh ekstensi pada aplikasi. Pemasangan lewat Chrome Web Store belum tersedia. Detail: `chrome-extension/PANDUAN.txt` dan panduan dalam aplikasi.
 
 ## Penyimpanan
 

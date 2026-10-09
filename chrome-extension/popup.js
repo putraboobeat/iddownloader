@@ -36,7 +36,7 @@ $('subtitle').onchange=()=>{manualSubtitle=true;};
 $('send').onclick=()=>send(false);$('send-sub').onclick=()=>send(true);
 $('refresh').onclick=()=>refresh().catch(e=>$('status').textContent=e.message);
 $('clear').onclick=async()=>{await chrome.storage.session.remove('tab:'+tab.id);await chrome.action.setBadgeText({tabId:tab.id,text:''});await refresh();};
-(async()=>{await refresh();$('name').value=(tab.title||'Video').replace(/\s*[|/]\s*IDLIX.*$/i,'').slice(0,100);})().catch(e=>$('status').textContent=e.message);
+(async()=>{await refresh();$('name').value=(tab.title||'Video').replace(/\s*[|/]\s*[^|/]+$/i,'').slice(0,100);})().catch(e=>$('status').textContent=e.message);
 
 $('settings').onclick=()=>chrome.runtime.openOptionsPage();
 $('copy-link').onclick=async()=>{const item=items.find(x=>x.url===$('media').value);if(!item){$('status').textContent='Playlist belum ditemukan.';return;}try{await navigator.clipboard.writeText(item.url);$('status').textContent='Link playlist lengkap tersalin.';}catch{const box=$('copy-link-fallback');box.hidden=false;box.value=item.url;box.focus();box.select();$('status').textContent='Tekan Command+C atau Ctrl+C untuk menyalin.'}};

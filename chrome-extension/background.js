@@ -53,7 +53,7 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
     if(base.protocol!=='http:'||base.hostname!=='127.0.0.1'||!base.port)throw Error('Alamat aplikasi tidak valid.');
     const group=new URL(media.url).pathname.match(/^\/v\/[^/]+\/[^/]+\//)?.[0];
     const subs=list.filter(x=>x.kind==='subtitle'&&group&&new URL(x.url).pathname.startsWith(group)).sort((a,b)=>Number(/\/i18n\/id\//.test(b.url))-Number(/\/i18n\/id\//.test(a.url))||b.time-a.time);
-    const payload={url:media.url,mode:'direct',name:(sender.tab.title||'Video').replace(/\s*[|/]\s*IDLIX.*$/i,'').slice(0,100),referer:sender.tab.url,subtitle_url:subs[0]?.url||''};
+    const payload={url:media.url,mode:'direct',name:(sender.tab.title||'Video').replace(/\s*[|/]\s*[^|/]+$/i,'').slice(0,100),referer:sender.tab.url,subtitle_url:subs[0]?.url||''};
     await chrome.tabs.create({url:base.origin+'/#import='+encodeURIComponent(JSON.stringify(payload))});
     return {ok:true};
   })().then(reply).catch(e=>reply({error:e.message}));
