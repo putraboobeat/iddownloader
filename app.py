@@ -15,7 +15,7 @@ import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote, quote
 from detect_video import discover
 from subtitles import save_subtitle
 from retention import Retention
@@ -23,8 +23,26 @@ from retention import Retention
 os.environ['PATH'] = os.pathsep.join([os.environ.get('PATH', ''), '/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bin')])
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
-STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False}
+STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False, 'files': []}
 PROCESS = None
+
+def get_job_files(folder_path, job_id=''):
+    folder = Path(folder_path).resolve()
+    if not folder.exists() or not folder.is_dir():
+        return []
+    results = []
+    for p in sorted(folder.iterdir()):
+        if p.is_file() and not p.name.startswith('.'):
+            if job_id:
+                url = f'/download/{quote(job_id)}/{quote(p.name)}'
+            else:
+                url = f'/download/local/{quote(p.name)}'
+            results.append({
+                'name': p.name,
+                'size': p.stat().st_size,
+                'url': url
+            })
+    return results
 
 # Retention is enabled only in VPS mode, inside its dedicated output root.
 RETENTION = None
@@ -197,6 +215,10 @@ def run_job(data):
         add_log(str(exc))
         status('Pencarian atau unduhan gagal. Lihat detail proses.')
     finally:
+        if folder.exists():
+            media_files = get_job_files(folder, managed_folder.name if managed_folder else '')
+        else:
+            media_files = []
         if managed_folder:
             try:
                 deadline = RETENTION.finish(managed_folder)
@@ -204,6 +226,7 @@ def run_job(data):
             except OSError as exc:
                 add_log('Gagal menyimpan jadwal pembersihan: ' + str(exc))
         with LOCK:
+            STATE['files'] = media_files
             if STATE['cancelled']:
                 STATE['status'] = 'Dihentikan.'
             PROCESS = None
@@ -343,6 +366,51 @@ class Handler(BaseHTTPRequestHandler):
             snapshot['retention_seconds'] = 3600 if VPS_ROOT else 0
             snapshot['tools'] = {'yt': bool(downloader()), 'ffmpeg': bool(shutil.which('ffmpeg'))}
             self.send(snapshot)
+        elif self.path.startswith('/download/'):
+            raw_path = self.path[len('/download/'):].split('?', 1)[0]
+            parts = raw_path.split('/', 1)
+            if len(parts) != 2:
+                return self.send({'error': 'Format URL unduhan tidak valid'}, 400)
+            job_id = unquote(parts[0])
+            filename = unquote(parts[1])
+            if '/' in filename or '\\' in filename or filename.startswith('.'):
+                return self.send({'error': 'Nama file tidak valid'}, 403)
+            if job_id == 'local':
+                with LOCK:
+                    cur_folder = Path(STATE.get('folder', '')).resolve()
+                target = (cur_folder / filename).resolve()
+                if not cur_folder or not target.is_relative_to(cur_folder):
+                    return self.send({'error': 'Akses ditolak'}, 403)
+            else:
+                if not job_id.startswith('job-') or '/' in job_id or '\\' in job_id:
+                    return self.send({'error': 'ID pekerjaan tidak valid'}, 403)
+                if not VPS_ROOT:
+                    return self.send({'error': 'Unduhan mode VPS tidak aktif'}, 400)
+                vps_base = VPS_ROOT.resolve()
+                target = (vps_base / job_id / filename).resolve()
+                if not target.is_relative_to(vps_base):
+                    return self.send({'error': 'Akses ditolak'}, 403)
+            if not target.is_file():
+                return self.send({'error': 'File tidak ditemukan atau telah kedaluwarsa'}, 404)
+            ctype = 'application/octet-stream'
+            low = filename.lower()
+            if low.endswith('.mp4'):
+                ctype = 'video/mp4'
+            elif low.endswith(('.srt', '.vtt')):
+                ctype = 'text/plain; charset=utf-8'
+            file_size = target.stat().st_size
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.send_header('Content-Length', str(file_size))
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            try:
+                with open(target, 'rb') as f:
+                    shutil.copyfileobj(f, self.wfile, length=64 * 1024)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         else:
             self.send({'error': 'Tidak tersedia'}, 403)
 
@@ -377,7 +445,7 @@ class Handler(BaseHTTPRequestHandler):
                         folder = str(Path(data.get('folder') or '~/Downloads').expanduser().resolve())
                     else:
                         cmd, folder = build_command(data)
-                    STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder, status='Menghubungkan…', input_url=data['url'], video_url='', subtitle_urls=[])
+                    STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder, status='Menghubungkan…', input_url=data['url'], video_url='', subtitle_urls=[], files=[])
                     threading.Thread(target=run_job, args=(data,), daemon=True).start()
                 self.send({'ok': True})
             elif self.path == '/stop':
