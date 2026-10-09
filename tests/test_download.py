@@ -14,6 +14,8 @@ class DownloadEndpointTests(unittest.TestCase):
             folder = Path(tmp)
             (folder / 'Video.mp4').write_bytes(b'video content 123')
             (folder / 'Video.srt').write_text('1\n00:00:00,000 --> 00:00:01,000\nHello')
+            (folder / 'Video.f1242.mp4').write_bytes(b'fragment')
+            (folder / 'Video.part').write_bytes(b'part')
             (folder / '.expiry.json').write_text('{"delete_at": 123}')
 
             files = app.get_job_files(folder, job_id='job-test123')
@@ -22,6 +24,8 @@ class DownloadEndpointTests(unittest.TestCase):
             self.assertIn('Video.mp4', names)
             self.assertIn('Video.srt', names)
             self.assertNotIn('.expiry.json', names)
+            self.assertNotIn('Video.f1242.mp4', names)
+            self.assertNotIn('Video.part', names)
 
             mp4 = next(f for f in files if f['name'] == 'Video.mp4')
             self.assertEqual(mp4['url'], '/download/job-test123/Video.mp4')

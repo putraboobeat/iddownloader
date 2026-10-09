@@ -33,6 +33,9 @@ def get_job_files(folder_path, job_id=''):
     results = []
     for p in sorted(folder.iterdir()):
         if p.is_file() and not p.name.startswith('.'):
+            # Exclude incomplete temporary files or unmerged format fragments (e.g. .part, .ytdl, .f1242.mp4)
+            if p.name.endswith(('.part', '.ytdl', '.temp')) or re.search(r'\.f[0-9a-zA-Z_-]+\.(mp4|m4a|webm|mkv)$', p.name):
+                continue
             if job_id:
                 url = f'/download/{quote(job_id)}/{quote(p.name)}'
             else:
@@ -97,9 +100,12 @@ def build_command(data):
     cmd += ['--ignore-config', '--no-playlist', '--newline', '--no-colors', '--progress', '--no-quiet',
             '--progress-template', 'download:APP_PROGRESS:%(progress._percent_str)s | %(progress._speed_str)s | ETA %(progress._eta_str)s',
             '--print', 'after_move:APP_FILE:%(filepath)s', '--no-simulate',
-            '--abort-on-unavailable-fragments', '--retries', '5', '--fragment-retries', '5',
-            '--retry-sleep', 'http:5', '--retry-sleep', 'fragment:5',
-            '--socket-timeout', '60', '--no-overwrites', '-f', formats.get(quality, formats['best']),
+            '--continue', '--no-abort-on-unavailable-fragments',
+            '--retries', '25', '--fragment-retries', '25', '--file-access-retries', '5',
+            '--extractor-retries', '10',
+            '--retry-sleep', 'http:3', '--retry-sleep', 'fragment:3', '--retry-sleep', 'extractor:3',
+            '--socket-timeout', '30', '--no-update',
+            '-f', formats.get(quality, formats['best']),
             '--merge-output-format', 'mp4', '--remux-video', 'mp4', '-P', str(folder), '-o', output]
     if data.get('forward', True):
         cmd += ['--extractor-args', 'generic:variant_query;fragment_query']
@@ -229,6 +235,9 @@ def run_job(data):
             STATE['files'] = media_files
             if STATE['cancelled']:
                 STATE['status'] = 'Dihentikan.'
+            elif (STATE['status'].startswith('Unduhan') or STATE['status'].startswith('Pencarian')) and any(f['name'].endswith(('.srt', '.vtt')) for f in media_files):
+                if not any(f['name'].endswith(('.mp4', '.mkv', '.webm')) for f in media_files):
+                    STATE['status'] = 'Unduhan video terputus, tetapi subtitle berhasil disimpan. Unduh subtitle di bawah.'
             PROCESS = None
             STATE['running'] = False
 

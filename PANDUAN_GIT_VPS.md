@@ -1,3 +1,6 @@
+cd ~/idxdownloader && git pull origin main && pm2 restart iddownloader
+
+
 # Panduan Lengkap Workflow Git: Lokal (Mac) ➔ GitHub ➔ VPS
 
 Dokumen ini berisi panduan standar setiap kali Anda melakukan perubahan kode di komputer lokal (Mac) dan ingin menerapkannya ke server VPS.
@@ -106,6 +109,11 @@ pm2 restart iddownloader
 ### Memeriksa Commit yang Sedang Aktif di VPS:
 ```bash
 git log -1 --oneline
+```
+
+### Memperbarui yt-dlp di VPS (jika ada peringatan versi usang):
+```bash
+pip install -U yt-dlp || python3 -m pip install -U yt-dlp || yt-dlp -U
 ```
 
 ### Memeriksa Status Cloudflare Tunnel di VPS:
