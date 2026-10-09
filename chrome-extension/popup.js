@@ -21,7 +21,7 @@ async function refresh(){
 async function send(subOnly){
   try{
     const settings=await chrome.storage.local.get('app');if(!settings.app)throw Error('Atur alamat aplikasi di Pengaturan ekstensi terlebih dahulu.');const app=new URL(settings.app);
-    if(app.protocol!=='http:'||app.hostname!=='127.0.0.1'||!app.port||app.username||app.password||app.pathname!=='/'||app.search)throw Error('Gunakan alamat aplikasi lokal: http://127.0.0.1:PORT');
+    if(!['http:','https:'].includes(app.protocol)||!app.hostname||app.username||app.password)throw Error('Gunakan alamat aplikasi yang valid: http://127.0.0.1:PORT atau https://dw.pmlab.id');
     const selected=items.find(x=>x.url===$(subOnly?'subtitle':'media').value);
     if(!selected)throw Error(subOnly?'Pilih subtitle terlebih dahulu.':'Pilih playlist terlebih dahulu.');
     await chrome.storage.local.set({app:app.origin});

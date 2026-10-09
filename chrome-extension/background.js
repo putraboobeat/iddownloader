@@ -50,7 +50,7 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
     if(!media)throw Error('Playlist belum ditemukan. Putar film terlebih dahulu.');
     if(!settings.app)throw Error('Isi alamat aplikasi terlebih dahulu.');
     const base=new URL(settings.app);
-    if(base.protocol!=='http:'||base.hostname!=='127.0.0.1'||!base.port)throw Error('Alamat aplikasi tidak valid.');
+    if(!['http:','https:'].includes(base.protocol)||!base.hostname)throw Error('Alamat aplikasi tidak valid.');
     const group=new URL(media.url).pathname.match(/^\/v\/[^/]+\/[^/]+\//)?.[0];
     const subs=list.filter(x=>x.kind==='subtitle'&&group&&new URL(x.url).pathname.startsWith(group)).sort((a,b)=>Number(/\/i18n\/id\//.test(b.url))-Number(/\/i18n\/id\//.test(a.url))||b.time-a.time);
     const payload={url:media.url,mode:'direct',name:(sender.tab.title||'Video').replace(/\s*[|/]\s*[^|/]+$/i,'').slice(0,100),referer:sender.tab.url,subtitle_url:subs[0]?.url||''};
