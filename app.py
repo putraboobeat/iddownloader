@@ -2,9 +2,11 @@
 """Local video downloader. Python standard library + installed yt-dlp/FFmpeg."""
 import argparse
 import json
+import mimetypes
 import os
 import re
 import secrets
+import shlex
 import shutil
 import signal
 import subprocess
@@ -33,8 +35,8 @@ def get_job_files(folder_path, job_id=''):
     results = []
     for p in sorted(folder.iterdir()):
         if p.is_file() and not p.name.startswith('.'):
-            # Exclude incomplete temporary files or unmerged format fragments (e.g. .part, .ytdl, .f1242.mp4)
-            if p.name.endswith(('.part', '.ytdl', '.temp')) or re.search(r'\.f[0-9a-zA-Z_-]+\.(mp4|m4a|webm|mkv)$', p.name):
+            # Exclude incomplete temporary files or unmerged format fragments (e.g. .part, .ytdl, .f1242.mp4, batch files)
+            if p.name.endswith(('.part', '.ytdl', '.temp', '.txt')) or re.search(r'\.f[0-9a-zA-Z_-]+\.(mp4|m4a|webm|mkv)$', p.name):
                 continue
             if job_id:
                 url = f'/download/{quote(job_id)}/{quote(p.name)}'
@@ -119,8 +121,124 @@ def build_command(data):
     return cmd + ['--', url], str(folder)
 
 def output_name(data):
-    name = re.sub(r'(?i)\.(mp4|vtt|srt)$', '', str(data.get('name', 'Video')).strip())
+    name = re.sub(r'(?i)\.(mp4|vtt|srt|mkv|webm|mp3|m4a|flac|wav|opus|aac)$', '', str(data.get('name', 'Video')).strip())
     return re.sub(r'[^\w .-]', '_', name).strip(' .')[:100] or 'Video'
+
+def build_ytdlp_command(data):
+    folder = Path(str(data.get('folder', '')).strip() or '~/Downloads').expanduser().resolve()
+    folder.mkdir(parents=True, exist_ok=True)
+    cmd = [data.get('yt_dlp') or downloader() or 'yt-dlp']
+    cmd += [
+        '--ignore-config', '--newline', '--no-colors', '--progress', '--no-quiet',
+        '--progress-template', 'download:APP_PROGRESS:%(progress._percent_str)s | %(progress._speed_str)s | ETA %(progress._eta_str)s',
+        '--print', 'after_move:APP_FILE:%(filepath)s', '--no-simulate',
+        '--continue', '--no-abort-on-unavailable-fragments',
+        '--retries', '20', '--fragment-retries', '20', '--file-access-retries', '5',
+        '--extractor-retries', '10',
+        '--retry-sleep', 'http:3', '--retry-sleep', 'fragment:3',
+        '--socket-timeout', '30', '--no-update',
+        '-P', str(folder)
+    ]
+    try:
+        concurrent = int(data.get('concurrent_fragments') or 4)
+        if 1 <= concurrent <= 16:
+            cmd += ['-N', str(concurrent)]
+    except (ValueError, TypeError):
+        pass
+
+    media_type = data.get('media_type', 'video')
+    if media_type == 'audio':
+        cmd.append('-x')
+        audio_fmt = data.get('audio_format', 'mp3')
+        if audio_fmt in ('mp3', 'm4a', 'flac', 'wav', 'opus', 'aac', 'best'):
+            cmd += ['--audio-format', audio_fmt]
+        audio_q = data.get('audio_quality', '0')
+        cmd += ['--audio-quality', str(audio_q)]
+    else:
+        res = str(data.get('resolution', 'best'))
+        res_map = {
+            '2160': 'bv*[height<=2160]+ba/b[height<=2160]',
+            '1440': 'bv*[height<=1440]+ba/b[height<=1440]',
+            '1080': 'bv*[height<=1080]+ba/b[height<=1080]',
+            '720': 'bv*[height<=720]+ba/b[height<=720]',
+            '480': 'bv*[height<=480]+ba/b[height<=480]',
+            '360': 'bv*[height<=360]+ba/b[height<=360]',
+        }
+        fmt = res_map.get(res, 'bv*+ba/b')
+        cmd += ['-f', fmt]
+        vid_fmt = data.get('video_format', 'mp4')
+        if vid_fmt in ('mp4', 'mkv', 'webm'):
+            cmd += ['--merge-output-format', vid_fmt]
+
+    if data.get('write_subs'):
+        cmd.append('--write-subs')
+    if data.get('auto_subs'):
+        cmd.append('--write-auto-subs')
+    if data.get('embed_subs') and media_type == 'video':
+        cmd.append('--embed-subs')
+    if data.get('write_subs') or data.get('auto_subs') or data.get('embed_subs'):
+        sub_lang = re.sub(r'[^a-zA-Z0-9,_-]', '', str(data.get('sub_lang', 'id,en'))).strip() or 'id,en'
+        cmd += ['--sub-langs', sub_lang]
+
+    if data.get('embed_thumb'):
+        cmd.append('--embed-thumbnail')
+    if data.get('write_thumb'):
+        cmd.append('--write-thumbnail')
+    if data.get('embed_metadata'):
+        cmd.append('--embed-metadata')
+    if data.get('embed_chapters'):
+        cmd.append('--embed-chapters')
+
+    if data.get('ignore_errors', True):
+        cmd.append('-i')
+    if data.get('playlist_start'):
+        try:
+            cmd += ['--playlist-start', str(int(data['playlist_start']))]
+        except (ValueError, TypeError):
+            pass
+    if data.get('playlist_end'):
+        try:
+            cmd += ['--playlist-end', str(int(data['playlist_end']))]
+        except (ValueError, TypeError):
+            pass
+    if data.get('max_downloads'):
+        try:
+            cmd += ['--max-downloads', str(int(data['max_downloads']))]
+        except (ValueError, TypeError):
+            pass
+
+    raw_name = str(data.get('name', '')).strip()
+    clean_name = re.sub(r'[^\w .-]', '_', raw_name).strip(' .')[:100]
+    urls = data.get('urls') or [data.get('url', '')]
+    if isinstance(urls, str):
+        urls = [u.strip() for u in urls.splitlines() if u.strip()]
+    urls = [clean_url(u) for u in urls if str(u).strip()]
+    if not urls:
+        raise ValueError('Masukkan minimal satu tautan URL.')
+
+    if len(urls) == 1 and clean_name and clean_name != 'Video':
+        cmd += ['-o', f'{clean_name}.%(ext)s']
+    else:
+        cmd += ['-o', '%(title)s [%(id)s].%(ext)s']
+
+    if data.get('custom_args'):
+        extra = shlex.split(str(data['custom_args']))
+        disallowed = {'--exec', '--exec-before-download'}
+        extra = [arg for arg in extra if not any(arg.startswith(d) for d in disallowed)]
+        cmd += extra
+
+    batch_file = None
+    if len(urls) > 1:
+        fd, batch_path = tempfile.mkstemp(prefix='ytdlp-batch-', suffix='.txt', dir=str(folder))
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            for u in urls:
+                f.write(u + '\n')
+        batch_file = batch_path
+        cmd += ['--batch-file', batch_path]
+    else:
+        cmd += ['--', urls[0]]
+
+    return cmd, folder, batch_file
 
 def run_job(data):
     global PROCESS
@@ -133,6 +251,37 @@ def run_job(data):
                 STATE['status'] = message
     managed_folder = None
     try:
+        if data.get('mode') == 'ytdlp':
+            urls = data.get('urls') or [data.get('url', '')]
+            if isinstance(urls, str):
+                urls = [u.strip() for u in urls.splitlines() if u.strip()]
+            urls = [clean_url(u) for u in urls if str(u).strip()]
+            with LOCK:
+                STATE.update(input_url='\n'.join(urls), video_url='', subtitle_urls=[])
+            folder = Path(data.get('folder') or '~/Downloads').expanduser().resolve()
+            job_name = output_name(data) if data.get('name') else ('YT_DLP_Batch' if len(urls) > 1 else 'YT_DLP_Download')
+            if RETENTION:
+                folder = RETENTION.create(job_name)
+                managed_folder = folder
+            else:
+                folder = folder / job_name
+            folder.mkdir(parents=True, exist_ok=True)
+            data['folder'] = str(folder)
+            with LOCK:
+                STATE['folder'] = str(folder)
+                STATE['target_folder'] = str(folder)
+            add_log('Folder hasil: ' + str(folder))
+            status('Memulai proses unduhan yt-dlp…')
+            cmd, folder, batch_file = build_ytdlp_command(data)
+            try:
+                run_download(cmd)
+            finally:
+                if batch_file and os.path.exists(batch_file):
+                    try:
+                        os.unlink(batch_file)
+                    except OSError:
+                        pass
+            return
         subtitle_only = data.get('mode') == 'subtitle' or urlsplit(data['url']).path.lower().endswith(('.vtt', '.srt'))
         direct = urlsplit(data['url']).path.lower().endswith(('.mp4', '.webm', '.m3u8', '.mpd', '.json'))
         with LOCK:
@@ -401,11 +550,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send({'error': 'Akses ditolak'}, 403)
             if not target.is_file():
                 return self.send({'error': 'File tidak ditemukan atau telah kedaluwarsa'}, 404)
-            ctype = 'application/octet-stream'
-            low = filename.lower()
-            if low.endswith('.mp4'):
-                ctype = 'video/mp4'
-            elif low.endswith(('.srt', '.vtt')):
+            ctype = mimetypes.guess_type(str(target))[0] or 'application/octet-stream'
+            if filename.lower().endswith(('.srt', '.vtt')):
                 ctype = 'text/plain; charset=utf-8'
             file_size = target.stat().st_size
             self.send_response(200)
@@ -435,9 +581,37 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Input tidak valid.')
             if self.path == '/start':
                 # Never accept internal cookie paths or captured headers from HTTP clients.
-                data = {key: data[key] for key in ('url', 'name', 'quality', 'folder', 'referer', 'forward', 'mode', 'subtitles', 'subtitle_url') if key in data}
+                allowed_keys = (
+                    'url', 'name', 'quality', 'folder', 'referer', 'forward', 'mode',
+                    'subtitles', 'subtitle_url',
+                    'urls', 'media_type', 'video_format', 'audio_format', 'audio_quality',
+                    'resolution', 'write_subs', 'auto_subs', 'embed_subs', 'sub_lang',
+                    'embed_thumb', 'write_thumb', 'embed_metadata', 'embed_chapters',
+                    'playlist_start', 'playlist_end', 'max_downloads', 'concurrent_fragments',
+                    'ignore_errors', 'custom_args'
+                )
+                data = {key: data[key] for key in allowed_keys if key in data}
                 if VPS_ROOT:
                     data['folder'] = str(VPS_ROOT)
+                if data.get('mode') == 'ytdlp':
+                    urls = data.get('urls') or [data.get('url', '')]
+                    if isinstance(urls, str):
+                        urls = [u.strip() for u in urls.splitlines() if u.strip()]
+                    urls = [clean_url(u) for u in urls if str(u).strip()]
+                    if not urls:
+                        raise ValueError('Masukkan minimal satu tautan URL.')
+                    data['urls'] = urls
+                    data['url'] = urls[0]
+                    with LOCK:
+                        if STATE['running']:
+                            raise ValueError('Masih ada unduhan yang berjalan.')
+                        folder = str(Path(data.get('folder') or '~/Downloads').expanduser().resolve())
+                        STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder,
+                                     status='Menyiapkan unduhan yt-dlp…', input_url='\n'.join(urls),
+                                     video_url='', subtitle_urls=[], files=[])
+                        threading.Thread(target=run_job, args=(data,), daemon=True).start()
+                    return self.send({'ok': True})
+
                 data['url'] = clean_url(data.get('url', ''))
                 if str(data.get('subtitle_url', '')).strip():
                     data['subtitle_url'] = clean_url(data['subtitle_url'])

@@ -58,10 +58,41 @@ sudo journalctl -u video-downloader -n 50 --no-pager
 
 Pada tunnel akun yang memiliki domain, arahkan hostname ke HTTP `127.0.0.1:6666`, dengan HTTP Host Header `127.0.0.1:6666`. Lindungi seluruh hostname dengan Cloudflare Access sebelum dipublikasikan. Jangan buka port 6666 ke Internet. Token aplikasi bukan login pengguna: halaman utama memberikan token kepada pengunjung yang bisa mengaksesnya.
 
-## Batasan VPS saat ini
+## Fitur & Pembaruan Terbaru
 
-- Gunakan link playlist/subtitle dari ekstensi Chrome di komputer sendiri. Deteksi halaman dengan Chrome interaktif membutuhkan layar/browser, sehingga tidak cocok untuk VPS headless dan CAPTCHA.
-- Ekstensi masih menerima alamat lokal HTTP saja. Gunakan Copy link JSON lalu tempel pada web VPS; dukungan kirim langsung ke HTTPS belum ditambahkan.
-- Hasil tersimpan di VPS, bukan otomatis pada komputer pengguna. Ambil melalui SFTP/SCP sebelum tenggat 1 jam. Tombol unduh hasil dari VPS ke browser belum tersedia.
-- Aplikasi memiliki satu antrean/status bersama dan hanya satu pekerjaan aktif; bukan layanan multi-user.
-- Cloudflare Tunnel hanya membawa akses UI. Ia tidak memperbaiki timeout atau penolakan 403 dari sumber video.
+- **Submenu Terpisah "Universal YT-DLP":**
+  - Mengunduh dari YouTube, Instagram Reels/Post, TikTok, Twitter/X, Facebook, SoundCloud, dan 1000+ situs lainnya.
+  - Mode Video (MP4, MKV, WebM) dengan pilihan resolusi dari 360p hingga 4K UHD.
+  - Mode Audio Saja (MP3, M4A, FLAC Lossless, WAV, OPUS) dengan pilihan bitrate (128k - 320k).
+  - Batch Download: Masukkan banyak URL baris demi baris dalam satu kali proses unduh.
+  - Fitur andalan yt-dlp: Embed metadata, thumbnail, chapters, subtitle, auto-captions, ignore errors, playlist range, dan multi-thread fragment download.
+- **Unduh Langsung ke Browser / PC:**
+  - Setelah 100% selesai di VPS, file muncul dengan tombol unduh langsung ke browser.
+  - Opsi *Otomatis simpan ke PC* otomatis memicu dialog download browser saat selesai tanpa perlu SFTP manual.
+
+## Cara Memperbarui di VPS
+
+Jika Anda memakai Git dan PM2/Systemd:
+
+```bash
+# Masuk ke folder aplikasi
+cd ~/iddownloader  # sesuaikan lokasi folder di VPS Anda
+
+# Tarik perubahan terbaru dari GitHub
+git pull origin main
+
+# Pastikan yt-dlp selalu versi paling baru agar tidak dicekal YouTube/medsos
+.venv/bin/pip install -U yt-dlp
+
+# Restart aplikasi
+pm2 restart iddownloader   # jika menggunakan PM2
+# atau jika menggunakan systemd:
+# sudo systemctl restart video-downloader
+```
+
+## Batasan & Catatan Penggunaan
+
+- Ekstensi Chrome Companion tetap terhubung untuk streaming film web.
+- Aplikasi memproses satu antrean unduhan aktif dalam satu waktu.
+- File di VPS otomatis dibersihkan dan dihapus permanen setelah 1 jam untuk menghemat kapasitas disk server.
+
