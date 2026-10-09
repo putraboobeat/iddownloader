@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Local video downloader. Python standard library + installed yt-dlp/FFmpeg."""
+import argparse
 import json
 import os
 import re
@@ -17,12 +18,17 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from detect_video import discover
 from subtitles import save_subtitle
+from retention import Retention
 
 os.environ['PATH'] = os.pathsep.join([os.environ.get('PATH', ''), '/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bin')])
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
 STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False}
 PROCESS = None
+
+# Retention is enabled only in VPS mode, inside its dedicated output root.
+RETENTION = None
+VPS_ROOT = None
 
 def clean_url(value):
     value = str(value).strip()
@@ -101,6 +107,7 @@ def run_job(data):
         with LOCK:
             if not STATE['cancelled']:
                 STATE['status'] = message
+    managed_folder = None
     try:
         subtitle_only = data.get('mode') == 'subtitle' or urlsplit(data['url']).path.lower().endswith(('.vtt', '.srt'))
         direct = urlsplit(data['url']).path.lower().endswith(('.mp4', '.webm', '.m3u8', '.mpd', '.json'))
@@ -110,7 +117,11 @@ def run_job(data):
                          subtitle_urls=[data['url']] if subtitle_only else [])
         folder = Path(data.get('folder') or '~/Downloads').expanduser().resolve()
         name = output_name(data)
-        folder = folder / name
+        if RETENTION:
+            folder = RETENTION.create(name)
+            managed_folder = folder
+        else:
+            folder = folder / name
         if not subtitle_only and (folder / (name + '.mp4')).exists():
             index = 2
             parent = folder.parent
@@ -120,12 +131,15 @@ def run_job(data):
         folder.mkdir(parents=True, exist_ok=True)
         data['folder'] = str(folder)
         data['_name'] = name
+        with LOCK:
+            STATE['folder'] = str(folder)
+            STATE['target_folder'] = str(folder)
         add_log('Folder hasil: ' + str(folder))
         if urlsplit(data['url']).path.lower().endswith(('.vtt', '.srt')) or data.get('mode') == 'subtitle':
             status('Mengunduh subtitle…')
             saved = save_subtitle(dict(url=data['url'], referer=data.get('referer')), folder, name, cancelled)
             add_log('Subtitle: ' + str(saved))
-            status('Selesai — subtitle tersimpan di folder tujuan.')
+            status('Selesai — subtitle tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 1 jam).' if RETENTION else '.'))
             with LOCK:
                 STATE['percent'] = 100
             return
@@ -183,6 +197,12 @@ def run_job(data):
         add_log(str(exc))
         status('Pencarian atau unduhan gagal. Lihat detail proses.')
     finally:
+        if managed_folder:
+            try:
+                deadline = RETENTION.finish(managed_folder)
+                add_log('Hasil dan file sementara dihapus otomatis pada ' + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(deadline)))
+            except OSError as exc:
+                add_log('Gagal menyimpan jadwal pembersihan: ' + str(exc))
         with LOCK:
             if STATE['cancelled']:
                 STATE['status'] = 'Dihentikan.'
@@ -232,11 +252,12 @@ def run_download(cmd):
                             STATE['status'] = stage
         proc.stdout.close()
         code = proc.wait()
+        target_dir = None
         with LOCK:
             if STATE['cancelled']:
                 STATE['status'] = 'Dihentikan. File sementara disimpan untuk melanjutkan.'
             elif code == 0:
-                STATE['status'] = 'Selesai — file tersimpan di folder tujuan.'
+                STATE['status'] = 'Selesai — file tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 1 jam).' if RETENTION else '.')
                 STATE['percent'] = 100
             else:
                 STATE['status'] = 'Unduhan gagal. Lihat detail di bawah.'
@@ -283,8 +304,18 @@ class Handler(BaseHTTPRequestHandler):
     def authorized(self):
         return self.headers.get('X-App-Token') == TOKEN
 
+    def valid_host(self):
+        host = self.headers.get('Host', '')
+        if host == '127.0.0.1:' + str(self.server.server_port):
+            return True
+        if host in ('localhost:' + str(self.server.server_port), '127.0.0.1', 'localhost'):
+            return True
+        if VPS_ROOT is not None or os.environ.get('ALLOW_ANY_HOST') == '1':
+            return True
+        return False
+
     def do_GET(self):
-        if self.headers.get('Host') != '127.0.0.1:' + str(self.server.server_port):
+        if not self.valid_host():
             return self.send({'error': 'Akses ditolak'}, 403)
         if self.path == '/':
             body = Path(__file__).with_name('index.html').read_text().replace('__APP_TOKEN__', TOKEN).encode()
@@ -308,13 +339,15 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/status' and self.authorized():
             with LOCK:
                 snapshot = dict(STATE)
+            snapshot['vps'] = bool(VPS_ROOT)
+            snapshot['retention_seconds'] = 3600 if VPS_ROOT else 0
             snapshot['tools'] = {'yt': bool(downloader()), 'ffmpeg': bool(shutil.which('ffmpeg'))}
             self.send(snapshot)
         else:
             self.send({'error': 'Tidak tersedia'}, 403)
 
     def do_POST(self):
-        if self.headers.get('Host') != '127.0.0.1:' + str(self.server.server_port) or not self.authorized():
+        if not self.valid_host() or not self.authorized():
             return self.send({'error': 'Akses ditolak'}, 403)
         try:
             size = int(self.headers.get('Content-Length', 0))
@@ -326,6 +359,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/start':
                 # Never accept internal cookie paths or captured headers from HTTP clients.
                 data = {key: data[key] for key in ('url', 'name', 'quality', 'folder', 'referer', 'forward', 'mode', 'subtitles', 'subtitle_url') if key in data}
+                if VPS_ROOT:
+                    data['folder'] = str(VPS_ROOT)
                 data['url'] = clean_url(data.get('url', ''))
                 if str(data.get('subtitle_url', '')).strip():
                     data['subtitle_url'] = clean_url(data['subtitle_url'])
@@ -359,11 +394,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send({'error': str(exc)}, 400)
 
 def main():
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    global RETENTION, VPS_ROOT
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--vps', action='store_true', help='Isolated downloads, automatically removed after one hour')
+    parser.add_argument('--port', type=int, default=0)
+    parser.add_argument('--download-dir', default=str(Path.home() / 'video-downloader-data'))
+    args = parser.parse_args()
+    if args.vps:
+        VPS_ROOT = Path(args.download_dir).expanduser().resolve()
+        RETENTION = Retention(VPS_ROOT, seconds=3600, log=add_log)
+        STATE['folder'] = str(VPS_ROOT)
+        def cleanup_worker():
+            while True:
+                RETENTION.sweep()
+                time.sleep(15)
+        threading.Thread(target=cleanup_worker, daemon=True).start()
+    port = args.port or (8080 if args.vps else 0)
+    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     url = 'http://127.0.0.1:' + str(server.server_port)
     print('Video Downloader: ' + url, flush=True)
+    if args.vps:
+        print(f'Mode VPS aktif (Port: {server.server_port}). File unduhan akan dihapus otomatis dalam 1 jam.', flush=True)
     print('Biarkan Terminal terbuka. Tekan Control+C untuk menutup program.', flush=True)
-    if '--no-browser' not in sys.argv:
+    if not args.no_browser and not args.vps:
         webbrowser.open(url)
     try:
         server.serve_forever()
