@@ -63,20 +63,20 @@ Ekstensi saat ini sudah canggih karena memanfaatkan *DevTools Protocol* untuk me
 
 Berikut adalah rancangan modifikasi tingkat dewanya:
 
-- [ ] **1. Injeksi Tombol Ajaib (DOM Injection)**
+- [x] **1. Injeksi Tombol Ajaib (DOM Injection)**
   - **YouTube:** Menambahkan tombol "⬇️ OmniFetch" di bawah video (tepat di sebelah tombol *Like/Share*).
   - **Instagram:** Menambahkan ikon unduh di setiap *Reels*, postingan gambar, dan *Carousel* secara otomatis (menyatu dengan UI asli Instagram).
   - **TikTok:** Menambahkan tombol unduh tanpa *watermark* di samping tombol komentar pada tampilan web TikTok.
   - *Cara kerja:* Sekali klik tombol tersebut, ekstensi akan langsung "melempar" URL ke server VPS di latar belakang tanpa pengguna harus membuka *tab* aplikasi OmniFetch.
 
-- [ ] **2. Silent Auto-Cookie Sync (Sinkronisasi Siluman)**
+- [x] **2. Silent Auto-Cookie Sync (Sinkronisasi Siluman)**
   - Ekstensi secara otomatis akan menyinkronkan (mengirim) *cookies* akun Instagram/TikTok/YouTube pengguna ke VPS secara berkala di latar belakang.
   - Pengguna tidak akan pernah lagi menemui masalah *"Video Private"* atau *"Batas Login"*, karena VPS selalu memiliki akses identitas yang *fresh* 100% tanpa campur tangan manual.
 
-- [ ] **3. Smart Sniffer Popup (Detektor Media Aktif)**
+- [x] **3. Smart Sniffer Popup (Detektor Media Aktif)**
   - Ekstensi akan memantau lalu lintas jaringan web (*Network Intercept*). Jika mendeteksi ada file video MP4 atau HLS m3u8 rahasia yang tersembunyi (biasanya di web bajakan atau situs *streaming* berbayar), ekstensi akan memunculkan *widget* kecil berkedip di pojok kanan bawah layar: *"1 Video Tersembunyi Ditemukan. Unduh?"*
 
-- [ ] **4. Klik Kanan Ajaib (Context Menu Power)**
+- [x] **4. Klik Kanan Ajaib (Context Menu Power)**
   - Cukup klik kanan pada link, gambar, atau *player* video apa pun di web, dan akan muncul menu: **"🚀 OmniFetch: Sedot ke VPS"**. Sangat praktis untuk mendownload video dari web artikel berita atau portal acak.
 
 - [ ] **5. Mass Media Sweeper (Penyapu Halaman)**
