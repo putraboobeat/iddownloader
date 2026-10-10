@@ -9,7 +9,15 @@
 .completed-zip-btn{background:linear-gradient(135deg,#92400e,#d97706)!important;border-color:#fbbf24!important;box-shadow:0 4px 16px #f59e0b40!important}
 .completed-zip-btn:hover{background:linear-gradient(135deg,#b45309,#f59e0b)!important;border-color:#fef08a!important;box-shadow:0 6px 22px #f59e0b60!important}
 .completed-play-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:9px;background:#991b1b;border:1px solid #ef4444;color:#fff;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s ease}.completed-play-btn:hover{background:#b91c1c;border-color:#f87171;box-shadow:0 4px 12px #ef444440}.completed-play-btn svg{width:13px;height:13px}
-.modal-overlay{position:fixed;inset:0;background:#00000099;backdrop-filter:blur(8px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}.modal-card{background:#131317;border:1px solid #3d2a33;border-radius:18px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px #000c;padding:24px}.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #282830;padding-bottom:12px}.modal-head h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}.close-btn{background:transparent;border:0;color:#aaa;cursor:pointer;padding:4px;border-radius:6px}.close-btn:hover{color:#fff;background:#2a2a35}
+[hidden],.modal-overlay[hidden]{display:none!important}
+.modal-overlay{position:fixed;inset:0;background:#00000099;backdrop-filter:blur(8px);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.is-open{display:flex!important}
+.modal-card{background:#131317;border:1px solid #3d2a33;border-radius:18px;max-width:580px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px #000c;padding:24px;position:relative}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #282830;padding-bottom:12px}
+.modal-head h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+.close-btn{background:transparent;border:0;color:#aaa;cursor:pointer;padding:6px 10px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.close-btn svg{pointer-events:none;width:18px;height:18px}
+.close-btn:hover{color:#fff;background:#2a2a35}
 .cookie-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;border-radius:20px;border:1px solid #363640;background:#181820;color:#aaa;cursor:pointer;font-weight:600}.cookie-badge.active{border-color:#166534;background:#052e16;color:#4ade80}.cookie-dot{width:7px;height:7px;border-radius:50%;background:#888}.cookie-badge.active .cookie-dot{background:#22c55e;box-shadow:0 0 8px #22c55e}
 .drop-zone{border:2px dashed #44353f;border-radius:12px;padding:20px;text-align:center;background:#181318;cursor:pointer;transition:all .2s}.drop-zone.dragover{border-color:#ff263e;background:#2c1520}
 .res-chip{background:#24141a;border:1px solid #571e2d;color:#ff8da0;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:700;transition:all .15s}.res-chip:hover{background:#3b1823;color:#fff}
@@ -112,7 +120,7 @@
 </div>
 <div id="u-error" role="alert"></div>
 </form></div></section>
-<div class="aside"><section class="card" aria-labelledby="activity-title"><div class="card-head"><h2 id="activity-title">Aktivitas unduhan</h2><span class="status-badge" id="activity-badge">SIAP</span></div><div class="card-body"><div class="status-visual" aria-hidden="true"><svg><use href="#i-download"/></svg></div><div id="status" role="status" aria-live="polite">Siap mengunduh</div><div class="progress-label"><span>PROGRES UNDUHAN</span><strong id="percent-label">0%</strong></div><div class="track" role="progressbar" aria-label="Progres unduhan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="bar" id="bar"></div></div><p class="hint">Progres dapat kembali ke awal saat beralih dari video ke audio.</p><div id="transfer-warning" role="status" hidden style="margin-top:16px;padding:13px;border:1px solid #946328;border-radius:9px;background:#302211;color:#ffce87;font-size:12px;line-height:1.7"></div><div id="completed-box" hidden class="completed-box"><div class="completed-head"><div class="completed-title"><svg style="width:18px;height:18px"><use href="#i-check"/></svg><span id="completed-box-title">File siap diunduh ke perangkat Anda</span></div><label style="font-size:11px;color:#86efac;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="auto-save" checked> Otomatis simpan ke PC</label></div><p class="completed-hint">Klik tombol di bawah untuk menyimpan langsung ke HP/Laptop Anda (otomatis dihapus dari server dalam 2 jam).</p><div id="completed-files"></div></div><div class="live-meta"><div><small>KECEPATAN</small><strong id="speed">—</strong></div><div><small>ESTIMASI SISA</small><strong id="eta">—</strong></div></div><p id="updated">Menunggu status…</p><button class="button" type="button" id="stop-activity" disabled>■ HENTIKAN UNDUHAN</button><div class="copy-row"><button class="button" type="button" id="copy-status">Salin status & log</button><p id="copy-feedback" role="status"></p><textarea id="copy-fallback" aria-label="Status dan log untuk disalin" readonly hidden></textarea></div><details id="details"><summary>Lihat detail proses</summary><pre id="logs">Belum ada proses.</pre></details></div></section>
+<div class="aside"><section class="card" aria-labelledby="activity-title"><div class="card-head"><h2 id="activity-title">Aktivitas unduhan</h2><span class="status-badge" id="activity-badge">SIAP</span></div><div class="card-body"><div class="status-visual" aria-hidden="true"><svg><use href="#i-download"/></svg></div><div id="status" role="status" aria-live="polite">Siap mengunduh</div><div class="progress-label"><span>PROGRES UNDUHAN</span><strong id="percent-label">0%</strong></div><div class="track" role="progressbar" aria-label="Progres unduhan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="bar" id="bar"></div></div><p class="hint">Progres dapat kembali ke awal saat beralih dari video ke audio.</p><div id="transfer-warning" role="status" hidden style="margin-top:16px;padding:13px;border:1px solid #946328;border-radius:9px;background:#302211;color:#ffce87;font-size:12px;line-height:1.7"></div><div id="completed-box" hidden class="completed-box"><div class="completed-head"><div class="completed-title"><svg style="width:18px;height:18px"><use href="#i-check"/></svg><span id="completed-box-title">File siap diunduh ke perangkat Anda</span></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><label style="font-size:11px;color:#86efac;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="auto-save" checked> Otomatis simpan ke PC</label><button type="button" class="button" id="btn-clear-server-files" style="padding:4px 8px;font-size:10px;background:#3f1414;border-color:#7f1d1d;color:#fca5a5" title="Hapus file di server langsung tanpa menunggu 2 jam">🧹 Bersihkan Server</button></div></div><p class="completed-hint">Klik tombol di bawah untuk menyimpan langsung ke HP/Laptop Anda (otomatis dihapus dari server dalam 2 jam).</p><div id="completed-files"></div></div><div class="live-meta"><div><small>KECEPATAN</small><strong id="speed">—</strong></div><div><small>ESTIMASI SISA</small><strong id="eta">—</strong></div></div><p id="updated">Menunggu status…</p><button class="button" type="button" id="stop-activity" disabled>■ HENTIKAN UNDUHAN</button><div class="copy-row"><button class="button" type="button" id="copy-status">Salin status & log</button><p id="copy-feedback" role="status"></p><textarea id="copy-fallback" aria-label="Status dan log untuk disalin" readonly hidden></textarea></div><details id="details"><summary>Lihat detail proses</summary><pre id="logs">Belum ada proses.</pre></details></div></section>
 <section class="card guide" id="guide" aria-labelledby="guide-title"><h2 id="guide-title">Tiga langkah. Siap ditonton.</h2><ol><li><div>Tempel tautan<p>Gunakan alamat halaman film, video, atau subtitle.</p></div></li><li><div>Atur sesuai keinginan<p>Pilih kualitas, nama file, dan folder tujuan.</p></div></li><li><div>Unduh & simpan<p>Klik Play atau selesaikan verifikasi di Chrome jika diminta. Biarkan aplikasi tetap terbuka.</p></div></li></ol><div class="formats" aria-label="Format yang didukung"><span>MP4</span><span>MKV</span><span>MP3</span><span>FLAC</span><span>WEBM</span><span>YOUTUBE</span><span>INSTAGRAM</span><span>TIKTOK</span><span>HLS</span><span>SRT</span></div></section></div>
 </div>
 <section class="card" id="extension-guide" style="margin-top:24px"><div class="card-head"><h2>Ekstensi Chrome & panduan lengkap</h2><a class="button primary" href="/extension.zip" download>↓ Unduh ekstensi Chrome</a></div><div class="card-body">
@@ -126,7 +134,7 @@
 <details><summary>7. Hentikan, lanjutkan, dan analisis masalah</summary><ol><li>Klik Hentikan unduhan untuk membatalkan. File sementara dapat digunakan untuk melanjutkan.</li><li>Untuk melanjutkan video yang belum selesai, gunakan nama film, folder utama, dan kualitas yang sama. Gunakan tautan baru jika token lama kedaluwarsa.</li><li>Kecepatan nol atau progres diam bisa berarti server sedang menunggu/timeout. Aplikasi menunggu hingga 60 detik pada operasi koneksi dan mencoba ulang hingga 5 kali.</li><li>HTTP 403 berarti akses ditolak. Putar ulang film, salin URL baru, dan isi alamat halaman asal bila diperlukan. CAPTCHA tetap diselesaikan di browser.</li><li>Subtitle gagal tidak selalu menggagalkan unduhan video. Periksa Detail proses.</li><li>Klik Salin status & log lalu tempel untuk analisis. Laporan menyertakan URL lengkap dan token sumber proses.</li><li>Jika Program terputus, jalankan Mulai.command dan perbarui alamat aplikasi di pengaturan ekstensi.</li></ol></details>
 <details><summary>8. Memperbarui ekstensi dan batas dukungan</summary><ol><li>Unduh ZIP terbaru, ekstrak, lalu ganti isi folder ekstensi yang dipasang dengan versi baru.</li><li>Buka chrome://extensions dan klik Reload ⟳ pada VIDEO Downloader Companion.</li><li>Muat ulang halaman film. Jika folder dipindah, gunakan Load unpacked pada lokasi baru dan hapus versi duplikat.</li><li>Ekstensi saat ini mendukung situs pemutar yang tercantum pada manifest ekstensi. Domain pemutar lain mungkin tidak terdeteksi.</li><li>Ekstensi tidak melewati CAPTCHA dan tidak mengambil cookie login. Beberapa sumber tetap dapat menolak downloader.</li><li>Menutup panel dengan × menyembunyikannya sampai halaman dimuat ulang. Popup toolbar tetap bisa digunakan.</li></ol></details>
 </div></section><footer><strong>VIDEO DOWNLOADER</strong><span>Biarkan Terminal terbuka selama mengunduh. Control+C untuk menutup.</span></footer>
-<div id="video-modal" class="modal-overlay" hidden>
+<div id="video-modal" class="modal-overlay" hidden style="display:none">
   <div class="modal-card" style="max-width:820px">
     <div class="modal-head">
       <h3 id="video-modal-title">▶ Pemutar Video Langsung</h3>
@@ -135,7 +143,7 @@
     <video id="modal-video" controls autoplay playsinline style="width:100%;max-height:68vh;border-radius:10px;background:#000"></video>
   </div>
 </div>
-<div id="cookie-modal" class="modal-overlay" hidden>
+<div id="cookie-modal" class="modal-overlay" hidden style="display:none">
   <div class="modal-card">
     <div class="modal-head">
       <h3>🍪 Pengaturan Cookie Media Sosial</h3>
@@ -153,9 +161,10 @@
     </div>
     <label for="cookie-text" style="margin-top:14px">Atau tempel isi cookies.txt secara manual:</label>
     <textarea id="cookie-text" placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;0&#9;sessionid&#9;..." style="height:90px;font-size:11px;font-family:monospace"></textarea>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button type="button" class="button primary" id="btn-save-cookies" style="flex:1">Simpan Cookie</button>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button type="button" class="button primary" id="btn-save-cookies" style="flex:1;min-width:140px">Simpan Cookie</button>
       <button type="button" class="button" id="btn-sync-guide" style="font-size:11px">Panduan Ekstensi</button>
+      <button type="button" class="button" id="btn-close-cookie-btn" style="font-size:11px">✕ Tutup</button>
     </div>
     <div id="cookie-feedback" style="margin-top:10px;font-size:12px" role="status"></div>
     <div id="cookie-guide-text" hidden style="margin-top:14px;padding:12px;background:#18181e;border-radius:8px;font-size:11px;line-height:1.6;color:#bbb">
@@ -192,18 +201,23 @@ $('transfer-warning').hidden=!warning;$('transfer-warning').textContent=warning;
 if(warning)$('activity-badge').textContent='MENUNGGU DATA';
 }
 const autoSaved=new Set();
+function closeVideoModal(){
+const v=$('modal-video');if(v){v.pause();v.src='';}
+const m=$('video-modal');if(m){m.hidden=true;m.classList.remove('is-open');m.style.display='none';}
+}
 window.playMedia=function(streamUrl,filename){
-$('video-modal').hidden=false;$('video-modal-title').textContent='▶ '+decodeURIComponent(filename);
-const v=$('modal-video');v.src=streamUrl;v.play().catch(()=>{});
+const m=$('video-modal');if(m){m.hidden=false;m.classList.add('is-open');m.style.display='flex';}
+$('video-modal-title').textContent='▶ '+decodeURIComponent(filename);
+const v=$('modal-video');if(v){v.src=streamUrl;v.play().catch(()=>{});}
 };
-$('close-video-modal').onclick=()=>{const v=$('modal-video');v.pause();v.src='';$('video-modal').hidden=true;};
-$('video-modal').onclick=e=>{if(e.target===$('video-modal'))$('close-video-modal').click();};
+$('close-video-modal').onclick=closeVideoModal;
+$('video-modal').onclick=e=>{if(e.target===$('video-modal'))closeVideoModal();};
 
 async function checkCookieStatus(){
 try{const res=await api('/cookies-status');const loaded=res.loaded;
-$('cookie-status-dot').style.background=loaded?'#22c55e':'#888';
-$('btn-cookie-modal').classList.toggle('active',Boolean(loaded));
-$('cookie-status-text').textContent=loaded?'Cookie: Aktif':'Cookie: Belum Ada';
+if($('cookie-status-dot'))$('cookie-status-dot').style.background=loaded?'#22c55e':'#888';
+if($('btn-cookie-modal'))$('btn-cookie-modal').classList.toggle('active',Boolean(loaded));
+if($('cookie-status-text'))$('cookie-status-text').textContent=loaded?'Cookie: Aktif':'Cookie: Belum Ada';
 let detail='Belum ada cookie media sosial dimuat.';
 if(loaded){
 const parts=[];if(res.has_instagram)parts.push('Instagram');if(res.has_tiktok)parts.push('TikTok');if(res.has_youtube)parts.push('YouTube');
@@ -212,11 +226,20 @@ detail='Cookie aktif ('+(parts.join(', ')||'Medsos')+') · '+(res.size?Math.roun
 if($('cookie-box-state'))$('cookie-box-state').textContent=detail;
 }catch(e){}
 }
-function openCookieModal(){$('cookie-modal').hidden=false;checkCookieStatus();$('cookie-feedback').textContent='';}
+function openCookieModal(){
+const m=$('cookie-modal');if(m){m.hidden=false;m.classList.add('is-open');m.style.display='flex';}
+checkCookieStatus();
+if($('cookie-feedback'))$('cookie-feedback').textContent='';
+}
+function closeCookieModal(){
+const m=$('cookie-modal');if(m){m.hidden=true;m.classList.remove('is-open');m.style.display='none';}
+}
 $('btn-cookie-modal').onclick=openCookieModal;
 if($('u-open-cookie-btn'))$('u-open-cookie-btn').onclick=openCookieModal;
-$('close-cookie-modal').onclick=()=>{$('cookie-modal').hidden=true;};
-$('cookie-modal').onclick=e=>{if(e.target===$('cookie-modal'))$('close-cookie-modal').click();};
+$('close-cookie-modal').onclick=closeCookieModal;
+if($('btn-close-cookie-btn'))$('btn-close-cookie-btn').onclick=closeCookieModal;
+$('cookie-modal').onclick=e=>{if(e.target===$('cookie-modal'))closeCookieModal();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Esc'){closeCookieModal();closeVideoModal();}});
 $('btn-sync-guide').onclick=()=>{$('cookie-guide-text').hidden=!$('cookie-guide-text').hidden;};
 
 const dropZone=$('cookie-drop-zone'),fileInput=$('cookie-file-input');
@@ -360,6 +383,15 @@ if(s.status.includes('gagal'))$('details').open=true;
 }catch(e){
 connected=false;$('transfer-warning').hidden=true;document.body.dataset.running='false';$('activity-badge').textContent='TERPUTUS';$('stop').disabled=true;$('stop-activity').disabled=true;if($('u-start'))$('u-start').disabled=true;if($('u-stop'))$('u-stop').disabled=true;$('updated').textContent='Koneksi terputus. Status terakhir: '+(lastUpdated?lastUpdated.toLocaleTimeString('id-ID'):'belum tersedia');$('status').textContent='Program terputus. Buka kembali Mulai.command.';$('start').disabled=true;
 }}
+
+if($('btn-clear-server-files'))$('btn-clear-server-files').onclick=async()=>{
+if(!confirm('Hapus semua file hasil unduhan dari server sekarang?'))return;
+try{
+await api('/clear-files',{});
+$('completed-box').hidden=true;
+$('completed-files').innerHTML='';
+}catch(e){alert('Gagal membersihkan server: '+e.message);}
+};
 
 function switchSubmenu(target){
 const isUniversal=target==='universal';

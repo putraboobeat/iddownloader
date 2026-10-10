@@ -164,7 +164,7 @@ def build_ytdlp_command(data):
     folder.mkdir(parents=True, exist_ok=True)
     cmd = [data.get('yt_dlp') or downloader() or 'yt-dlp']
     cmd += [
-        '--ignore-config', '--newline', '--no-colors', '--progress', '--no-quiet',
+        '--no-cache-dir', '--ignore-config', '--newline', '--no-colors', '--progress', '--no-quiet',
         '--progress-template', 'download:APP_PROGRESS:%(progress._percent_str)s | %(progress._speed_str)s | ETA %(progress._eta_str)s',
         '--print', 'after_move:APP_FILE:%(filepath)s', '--no-simulate',
         '--continue', '--no-abort-on-unavailable-fragments',
@@ -631,7 +631,7 @@ class Handler(BaseHTTPRequestHandler):
             target_url = clean_url((qs.get('url') or [''])[0])
             if not target_url:
                 return self.send({'error': 'URL tidak valid'}, 400)
-            cmd = [downloader() or 'yt-dlp', '--dump-single-json', '--socket-timeout', '15']
+            cmd = [downloader() or 'yt-dlp', '--no-cache-dir', '--dump-single-json', '--socket-timeout', '15']
             cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
             if 'instagram.com' in target_url.lower():
                 cmd += ['--add-header', 'Referer:https://www.instagram.com/']
@@ -841,6 +841,26 @@ class Handler(BaseHTTPRequestHandler):
                     add_log(f'Log pembaruan yt-dlp:\n{out}')
                 threading.Thread(target=update_worker, daemon=True).start()
                 return self.send({'ok': True, 'message': 'Pembaruan yt-dlp dijalankan di latar belakang.'})
+
+            if self.path == '/clear-files':
+                cleared = 0
+                target_dir = VPS_ROOT if VPS_ROOT else Path(STATE.get('folder', '~/Downloads')).expanduser().resolve()
+                if target_dir and target_dir.is_dir():
+                    for item in target_dir.iterdir():
+                        if item.name.startswith('.'):
+                            continue
+                        try:
+                            if item.is_dir():
+                                shutil.rmtree(item, ignore_errors=True)
+                            else:
+                                item.unlink(missing_ok=True)
+                            cleared += 1
+                        except Exception:
+                            pass
+                with LOCK:
+                    STATE['files'] = []
+                add_log(f'File di server berhasil dibersihkan ({cleared} item dihapus).')
+                return self.send({'ok': True, 'cleared': cleared})
 
             size = int(self.headers.get('Content-Length', 0))
             if not 0 <= size <= 65536:

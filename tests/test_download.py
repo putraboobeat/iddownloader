@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import json
+import shutil
 from pathlib import Path
 from http.server import ThreadingHTTPServer
 import threading
@@ -79,6 +80,7 @@ class DownloadEndpointTests(unittest.TestCase):
                 'sub_lang': 'id,en'
             }
             cmd, folder, batch_file = app.build_ytdlp_command(data_video)
+            self.assertIn('--no-cache-dir', cmd)
             self.assertIn('-f', cmd)
             self.assertIn('--merge-output-format', cmd)
             self.assertIn('mp4', cmd)
@@ -262,6 +264,31 @@ class DownloadEndpointTests(unittest.TestCase):
             self.assertEqual(len(all_files), 3) # TestJob.zip, Slide_1.jpg, Slide_2.mp4
             self.assertEqual(all_files[0]['name'], 'TestJob.zip')
             self.assertTrue(all_files[0]['is_zip'])
+
+    def test_clear_files_endpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            (tmp_path / 'video1.mp4').write_bytes(b'test')
+            (tmp_path / 'subfolder').mkdir()
+            (tmp_path / 'subfolder' / 'part.mp4').write_bytes(b'sub')
+            
+            old_root = app.VPS_ROOT
+            app.VPS_ROOT = tmp_path
+            try:
+                # Simulate clear-files logic
+                cleared = 0
+                for item in app.VPS_ROOT.iterdir():
+                    if item.name.startswith('.'):
+                        continue
+                    if item.is_dir():
+                        shutil.rmtree(item, ignore_errors=True)
+                    else:
+                        item.unlink(missing_ok=True)
+                    cleared += 1
+                self.assertEqual(cleared, 2)
+                self.assertEqual(list(app.VPS_ROOT.iterdir()), [])
+            finally:
+                app.VPS_ROOT = old_root
 
 
 if __name__ == '__main__':
