@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://omnifetch.atrbpnaceh.com/sitemap.xml
+Sitemap: https://dw.pmlab.id/sitemap.xml
