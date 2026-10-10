@@ -652,6 +652,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('X-Frame-Options', 'DENY')
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == '/features':
+            try:
+                body = Path(__file__).with_name('features.html').read_text().encode()
+            except FileNotFoundError:
+                body = b'Features page not found.'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Frame-Options', 'DENY')
+            self.end_headers()
+            self.wfile.write(body)
         elif self.path in ('/favicon.ico', '/favicon-192.png', '/favicon-512.png', '/robots.txt', '/sitemap.xml'):
             fname = self.path.lstrip('/')
             fpath = Path(__file__).with_name(fname)
