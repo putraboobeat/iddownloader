@@ -91,8 +91,8 @@ async function runTests() {
 
     // Test ambiguous / JSON / claim
     const unverifiedClaim = Detector.initialClassify('https://player.example.com/api/claim', 'application/json');
-    assert.equal(unverifiedClaim.kind, 'unverified');
-    assert.equal(unverifiedClaim.statusLabel, 'Belum diverifikasi');
+    assert.equal(unverifiedClaim.kind, 'non_media');
+    assert.equal(unverifiedClaim.statusLabel, 'Bukan media');
     assert.equal(unverifiedClaim.isMedia, false, 'Claim/JSON must NOT be marked as media initially');
     console.log('✔ Initial classification correctly segregates media from non-media.');
 
@@ -110,75 +110,62 @@ async function runTests() {
     const originalFetch = globalThis.fetch;
     
     // Subtest: Content starts with #EXTM3U
-    globalThis.fetch = async () => ({
-        ok: true,
-        status: 200,
-        text: async () => '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=1280000\nchunklist.m3u8'
-    });
-    const verifiedHls = await Detector.verifyCandidateContent({ ...candHlsInJson });
+    const hlsSnippet = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=1280000\nchunklist.m3u8';
+    const verifiedHls = Detector.verifyCandidateContent({ ...candHlsInJson }, hlsSnippet);
     assert.equal(verifiedHls.kind, 'hls');
     assert.equal(verifiedHls.statusLabel, 'Playlist HLS');
     assert.equal(verifiedHls.isMedia, true);
     console.log('✔ #EXTM3U detected in .json URL correctly classified as Playlist HLS.');
 
     // Subtest: DASH manifest inside XML/text
-    globalThis.fetch = async () => ({
-        ok: true,
-        status: 200,
-        text: async () => '<?xml version="1.0"?><MPD xmlns="urn:mpeg:dash:schema:mpd:2011"></MPD>'
-    });
-    const verifiedDash = await Detector.verifyCandidateContent({ ...candHlsInJson });
+    const dashSnippet = '<?xml version="1.0"?><MPD xmlns="urn:mpeg:dash:schema:mpd:2011"></MPD>';
+    const verifiedDash = Detector.verifyCandidateContent({ ...candHlsInJson }, dashSnippet);
     assert.equal(verifiedDash.kind, 'dash');
     assert.equal(verifiedDash.statusLabel, 'Manifest DASH');
     assert.equal(verifiedDash.isMedia, true);
     console.log('✔ <MPD> XML correctly classified as Manifest DASH.');
 
     // Subtest: Player config JSON containing media sources
-    globalThis.fetch = async () => ({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({
-            title: 'Sample Movie',
-            sources: [{ file: 'https://stream.example.com/master.m3u8?token=signed999', type: 'hls' }]
-        })
+    const configSnippet = JSON.stringify({
+        title: 'Sample Movie',
+        sources: [{ file: 'https://stream.example.com/master.m3u8?token=signed999', type: 'hls' }]
     });
-    const verifiedConfig = await Detector.verifyCandidateContent({ ...candHlsInJson });
+    const verifiedConfig = Detector.verifyCandidateContent({ ...candHlsInJson }, configSnippet);
     assert.equal(verifiedConfig.kind, 'hls');
     assert.equal(verifiedConfig.isMedia, true);
     assert.equal(verifiedConfig.extractedMediaUrl, 'https://stream.example.com/master.m3u8?token=signed999');
     console.log('✔ Player JSON config with media source successfully extracted.');
 
     // Subtest: Non-media JSON (e.g. claim / analytics / challenge)
-    globalThis.fetch = async () => ({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({
-            claim: 'approved',
-            token: 'xyz-secret-token',
-            expires_in: 3600
-        })
+    const claimSnippet = JSON.stringify({
+        claim: 'approved',
+        token: 'xyz-secret-token',
+        expires_in: 3600
     });
-    const nonMediaClaim = await Detector.verifyCandidateContent({
+    const nonMediaClaim = Detector.verifyCandidateContent({
         url: 'https://example.com/api/claim',
         kind: 'unverified',
         statusLabel: 'Belum diverifikasi',
         isMedia: false,
         verified: false
-    });
+    }, claimSnippet);
     assert.equal(nonMediaClaim.kind, 'non_media');
     assert.equal(nonMediaClaim.statusLabel, 'Bukan media');
     assert.equal(nonMediaClaim.isMedia, false);
     console.log('✔ Non-media claim response detected and marked as "Bukan media" (excluded from download).');
 
-    // Subtest: Adding candidate with claim excludes it from candidate list
+    // Subtest: Adding candidate with claim retains it as non_media with isMedia: false
     chrome.storage.session.data = {};
     const tabId = 123;
     await Detector.addCandidate(tabId, 'https://example.com/api/claim', 'application/json');
     const itemsAfterClaim = await Detector.getCandidates(tabId);
-    assert.equal(itemsAfterClaim.length, 0, 'Non-media claim response must NOT be stored in candidates list');
-    console.log('✔ Claim URL was filtered out and NOT added to candidate registry.');
+    assert.equal(itemsAfterClaim.length, 1);
+    assert.equal(itemsAfterClaim[0].kind, 'non_media');
+    assert.equal(itemsAfterClaim[0].isMedia, false, 'Claim must have isMedia: false');
+    console.log('✔ Claim URL was correctly classified as non_media with isMedia: false.');
 
     // Subtest: Signed URL preservation
+    chrome.storage.session.data = {};
     const signedUrl = 'https://cdn.example.com/video.m3u8?token=secret123&expires=9999999&sig=abcd';
     await Detector.addCandidate(tabId, signedUrl, 'application/x-mpegurl');
     const storedItems = await Detector.getCandidates(tabId);

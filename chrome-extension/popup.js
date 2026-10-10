@@ -22,7 +22,7 @@ function setStatus(containerId, type, messageHtml) {
 }
 
 function label(item) {
-    const status = item.statusLabel || (item.kind === 'hls' ? 'Playlist HLS' : item.kind === 'dash' ? 'Manifest DASH' : item.kind === 'video' ? 'Video langsung' : 'Belum diverifikasi');
+    const status = item.statusLabel || (item.kind === 'hls' ? 'Playlist HLS' : item.kind === 'dash' ? 'Manifest DASH' : item.kind === 'video' ? 'Video langsung' : item.kind === 'non_media' ? 'Bukan media' : 'Belum diverifikasi');
     return `[${status}] ${item.displayTitle || 'Media'}`;
 }
 
@@ -42,12 +42,12 @@ async function refresh() {
         
         items = res.items || [];
         
-        // Prioritaskan media terverifikasi: HLS & DASH (3) -> Video (2) -> Subtitle (1) -> Unverified (0)
+        // Prioritaskan media terverifikasi: HLS & DASH (4) -> Video (3) -> Unverified (2) -> Subtitle (1) -> Non-media (0)
         items.sort((a, b) => {
             const score = x => {
-                if (!x.isMedia) return 0;
-                if (['hls', 'dash'].includes(x.kind)) return 3;
-                if (x.kind === 'video') return 2;
+                if (['hls', 'dash'].includes(x.kind)) return 4;
+                if (x.kind === 'video') return 3;
+                if (x.kind === 'unverified') return 2;
                 if (x.kind === 'subtitle') return 1;
                 return 0;
             };
@@ -62,18 +62,17 @@ async function refresh() {
             $(item.kind === 'subtitle' ? 'subtitle' : 'media').append(opt);
         }
         
-        // Cari media yang benar-benar valid (bukan subtitle dan bukan unverified/non-media)
+        // Cari media yang benar-benar valid terlebih dahulu
         const best = items.find(x => x.kind !== 'subtitle' && x.isMedia);
         if (best) {
             $('media').value = best.url;
             onMediaSelected();
             setStatus('sniffer-status', 'success', `🎬 Terdeteksi ${best.statusLabel}: siap dikirim ke server.`);
         } else {
-            const unverified = items.find(x => x.kind !== 'subtitle');
-            if (unverified) {
-                $('media').value = unverified.url;
+            const fallback = items.find(x => x.kind !== 'subtitle');
+            if (fallback) {
+                $('media').value = fallback.url;
                 onMediaSelected();
-                setStatus('sniffer-status', 'loading', '⚠️ Sumber belum diverifikasi sebagai media. Putar video di web atau klik "Analisis Mendalam DOM".');
             } else {
                 $('send').disabled = true;
                 setStatus('sniffer-status', null);
@@ -92,15 +91,19 @@ function onMediaSelected() {
         return;
     }
 
-    if (!selected.isMedia) {
-        // Nonaktifkan tombol untuk kandidat yang belum diverifikasi atau bukan media
+    if (selected.kind === 'non_media') {
         $('send').disabled = true;
-        $('send').textContent = '⚠️ Sumber Belum Diverifikasi';
-        setStatus('sniffer-status', 'loading', 'Kandidat ini belum terbukti sebagai media stream. Putar pemutar film atau gunakan tombol Analisis Mendalam.');
+        $('send').textContent = '⚠️ Bukan Sumber Media';
+        setStatus('sniffer-status', 'error', '❌ Terdeteksi respons klaim/analitik non-media. Tombol unduh dinonaktifkan.');
+    } else if (!selected.isMedia) {
+        // Belum diverifikasi (misal JSON player config)
+        $('send').disabled = false;
+        $('send').textContent = '⬇ Kirim Playlist ke Server';
+        setStatus('sniffer-status', 'loading', '⚠️ Sumber config ini belum diverifikasi otomatis. Anda dapat mencoba mengirimkannya atau gunakan "Analisis Mendalam DOM".');
     } else {
         $('send').disabled = false;
         $('send').textContent = '⬇ Kirim Playlist ke Server';
-        setStatus('sniffer-status', null);
+        setStatus('sniffer-status', 'success', `🎬 ${selected.statusLabel} siap dikirim ke server.`);
     }
 }
 
@@ -196,9 +199,10 @@ function sendToBackground(payload, btnElement, statusContainerId, successText = 
     
     // Cek permissions situs asal
     try {
+        const hasAllPerm = await chrome.permissions.contains({ origins: ['<all_urls>'] });
         const origin = new URL(currentTab.url).origin + '/*';
-        const hasPerm = await chrome.permissions.contains({ origins: [origin] });
-        if (hasPerm && $('request-permission')) {
+        const hasOriginPerm = await chrome.permissions.contains({ origins: [origin] });
+        if ((hasAllPerm || hasOriginPerm) && $('request-permission')) {
             $('request-permission').style.display = 'none';
         }
     } catch(e) {}
@@ -282,8 +286,8 @@ $('send').onclick = () => {
         return;
     }
 
-    if (!selected.isMedia) {
-        setStatus('sniffer-status', 'error', '❌ Kandidat ini belum terverifikasi sebagai sumber media. Nonaktif.');
+    if (selected.kind === 'non_media') {
+        setStatus('sniffer-status', 'error', '❌ Terdeteksi respons klaim/analitik non-media. Nonaktif.');
         return;
     }
     
@@ -376,9 +380,14 @@ $('deep-analysis').onclick = async () => {
 $('request-permission').onclick = async () => {
     try {
         const origin = new URL(currentTab.url).origin + '/*';
-        const granted = await chrome.permissions.request({ origins: [origin] });
+        let granted = false;
+        try {
+            granted = await chrome.permissions.request({ origins: ['<all_urls>'] });
+        } catch(e) {
+            granted = await chrome.permissions.request({ origins: [origin] });
+        }
         if (granted) {
-            setStatus('sniffer-status', 'success', '✅ Izin situs diberikan! Silakan putar ulang video film.');
+            setStatus('sniffer-status', 'success', '✅ Izin deteksi diberikan! Silakan putar ulang video film.');
             $('request-permission').style.display = 'none';
         } else {
             setStatus('sniffer-status', 'loading', '⚠️ Permintaan izin akses situs ditolak.');

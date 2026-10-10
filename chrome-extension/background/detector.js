@@ -37,9 +37,13 @@ export class Detector {
                 return { kind: 'audio', statusLabel: 'Audio langsung', isMedia: true, verified: true };
             }
 
-            // 7. JSON atau teks yang belum diverifikasi
-            // JANGAN anggap semua JSON sebagai config/playlist! Berikan status "Belum diverifikasi"
-            if (mime.includes('json') || path.endsWith('.json') || mime.includes('text/plain') || mime.includes('octet-stream')) {
+            // 7. Endpoint token claim / analytics / telemetry murni -> Tandai sebagai Bukan media
+            if (path.includes('/claim') || path.includes('/analytics') || path.includes('/telemetry') || path.includes('/beacon') || path.includes('/metrics')) {
+                return { kind: 'non_media', statusLabel: 'Bukan media', isMedia: false, verified: true };
+            }
+
+            // 8. JSON, AJAX, config atau teks streaming lainnya -> Belum diverifikasi (tetap dimasukkan ke daftar agar tidak hilang)
+            if (mime.includes('json') || path.endsWith('.json') || mime.includes('text/plain') || mime.includes('octet-stream') || path.includes('stream') || path.includes('play') || path.includes('video') || path.includes('config')) {
                 return { kind: 'unverified', statusLabel: 'Belum diverifikasi', isMedia: false, verified: false };
             }
         } catch (e) {}
@@ -47,91 +51,129 @@ export class Detector {
         return null;
     }
 
-    /**
-     * Memeriksa konten kandidat secara terbatas tanpa menyimpan atau menampilkan isi sensitif.
-     */
-    static async verifyCandidateContent(candidate) {
-        if (candidate.verified || candidate.kind === 'segment') return candidate;
-
+    static verifyCandidateContent(candidate, snippet = '') {
+        if (!snippet) return candidate;
+        if (snippet.startsWith('#EXTM3U') || snippet.includes('#EXT-X-STREAM-INF') || snippet.includes('#EXT-X-TARGETDURATION')) {
+            candidate.kind = 'hls';
+            candidate.statusLabel = 'Playlist HLS';
+            candidate.isMedia = true;
+            candidate.verified = true;
+            return candidate;
+        }
+        if (snippet.includes('<MPD') || snippet.includes('<mpd')) {
+            candidate.kind = 'dash';
+            candidate.statusLabel = 'Manifest DASH';
+            candidate.isMedia = true;
+            candidate.verified = true;
+            return candidate;
+        }
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-            // Fetch terbatas (hanya ambil potongan awal untuk memeriksa header / magic bytes)
-            const headers = { 'Range': 'bytes=0-4096' };
-            if (candidate.referer) headers['Referer'] = candidate.referer;
-
-            const res = await fetch(candidate.url, {
-                method: 'GET',
-                headers,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!res.ok && res.status !== 206) {
-                return candidate; // Biarkan tetap unverified
-            }
-
-            const rawText = await res.text();
-            const snippet = rawText.slice(0, 4096).trim();
-
-            // 1. Periksa apakah HLS (#EXTM3U) meskipun berekstensi .json atau tanpa ekstensi
-            if (snippet.startsWith('#EXTM3U') || snippet.includes('#EXT-X-STREAM-INF') || snippet.includes('#EXT-X-TARGETDURATION')) {
+            const parsed = JSON.parse(snippet);
+            const mediaUrl = this.extractMediaUrlFromJson(parsed);
+            if (mediaUrl) {
                 candidate.kind = 'hls';
                 candidate.statusLabel = 'Playlist HLS';
+                candidate.extractedMediaUrl = mediaUrl;
                 candidate.isMedia = true;
                 candidate.verified = true;
                 return candidate;
             }
-
-            // 2. Periksa apakah DASH XML (<MPD>)
-            if (snippet.includes('<MPD') || snippet.includes('<mpd')) {
-                candidate.kind = 'dash';
-                candidate.statusLabel = 'Manifest DASH';
-                candidate.isMedia = true;
-                candidate.verified = true;
-                return candidate;
-            }
-
-            // 3. Periksa JSON
-            try {
-                const parsed = JSON.parse(snippet);
-                const extractedUrl = this.extractMediaUrlFromJson(parsed);
-
-                if (extractedUrl) {
-                    // Ditemukan field media valid di dalam JSON
-                    candidate.kind = 'hls';
-                    candidate.statusLabel = 'Playlist HLS';
-                    candidate.extractedMediaUrl = extractedUrl;
-                    candidate.isMedia = true;
-                    candidate.verified = true;
-                    return candidate;
-                }
-
-                // 4. Jika JSON akun, analytics, token, challenge, atau non-media
-                // Keluarkan dari daftar video!
-                const isNonMediaJson = this.isNonMediaJsonPayload(parsed, candidate.url);
-                if (isNonMediaJson) {
+            if (parsed && typeof parsed === 'object') {
+                const keys = Object.keys(parsed).map(k => k.toLowerCase());
+                if (keys.includes('claim')) {
                     candidate.kind = 'non_media';
                     candidate.statusLabel = 'Bukan media';
                     candidate.isMedia = false;
                     candidate.verified = true;
                     return candidate;
                 }
-            } catch (jsonErr) {
-                // Bukan JSON valid
             }
-        } catch (e) {
-            // Fetch gagal atau diblokir CORS browser
-        }
-
+        } catch(e) {}
         return candidate;
+    }
+
+    /**
+     * Memeriksa konten kandidat secara non-blocking di latar belakang.
+     */
+    static async verifyCandidateContentAsync(tabId, cleanUrl) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+            // Fetch terbatas tanpa header terlarang (Referer tidak boleh diset manual di fetch browser)
+            const res = await fetch(cleanUrl, {
+                method: 'GET',
+                headers: { 'Range': 'bytes=0-4096' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!res.ok && res.status !== 206) return;
+
+            const rawText = await res.text();
+            const snippet = rawText.slice(0, 4096).trim();
+
+            const key = `tab:${tabId}`;
+            const data = await chrome.storage.session.get(key);
+            let items = data[key] || [];
+            const idx = items.findIndex(x => x.url === cleanUrl);
+            if (idx === -1) return;
+
+            // 1. Cek HLS (#EXTM3U) meskipun URL .json atau tanpa ekstensi
+            if (snippet.startsWith('#EXTM3U') || snippet.includes('#EXT-X-STREAM-INF') || snippet.includes('#EXT-X-TARGETDURATION')) {
+                items[idx].kind = 'hls';
+                items[idx].statusLabel = 'Playlist HLS';
+                items[idx].isMedia = true;
+                items[idx].verified = true;
+                await chrome.storage.session.set({ [key]: items });
+                return;
+            }
+
+            // 2. Cek DASH (<MPD>)
+            if (snippet.includes('<MPD') || snippet.includes('<mpd')) {
+                items[idx].kind = 'dash';
+                items[idx].statusLabel = 'Manifest DASH';
+                items[idx].isMedia = true;
+                items[idx].verified = true;
+                await chrome.storage.session.set({ [key]: items });
+                return;
+            }
+
+            // 3. Cek JSON untuk media source
+            try {
+                const parsed = JSON.parse(snippet);
+                const mediaUrl = this.extractMediaUrlFromJson(parsed);
+                if (mediaUrl) {
+                    items[idx].kind = 'hls';
+                    items[idx].statusLabel = 'Playlist HLS';
+                    items[idx].extractedMediaUrl = mediaUrl;
+                    items[idx].isMedia = true;
+                    items[idx].verified = true;
+                    await chrome.storage.session.set({ [key]: items });
+                    return;
+                }
+
+                // Cek jika murni respons klaim/analitik non-media
+                if (parsed && typeof parsed === 'object') {
+                    const keys = Object.keys(parsed).map(k => k.toLowerCase());
+                    if (keys.includes('claim') && !mediaUrl) {
+                        items[idx].kind = 'non_media';
+                        items[idx].statusLabel = 'Bukan media';
+                        items[idx].isMedia = false;
+                        items[idx].verified = true;
+                        await chrome.storage.session.set({ [key]: items });
+                        return;
+                    }
+                }
+            } catch(e) {}
+        } catch (e) {
+            // Abaikan kegagalan verifikasi latar belakang
+        }
     }
 
     static extractMediaUrlFromJson(data) {
         if (!data || typeof data !== 'object') return null;
 
-        // Cari field populer di player config
         const candidatesToCheck = [
             data.file, data.url, data.src, data.stream, data.video, data.playbackUrl, data.manifest
         ];
@@ -154,22 +196,6 @@ export class Detector {
         return null;
     }
 
-    static isNonMediaJsonPayload(data, urlStr) {
-        if (!data || typeof data !== 'object') return false;
-
-        const path = new URL(urlStr).pathname.toLowerCase();
-        const nonMediaKeys = ['token', 'claim', 'challenge', 'user', 'account', 'auth', 'analytics', 'event', 'metrics', 'captcha', 'recaptcha', 'csrf', 'session_id'];
-        
-        // Cek nama path URL
-        const pathMatches = nonMediaKeys.some(k => path.includes(k));
-        
-        // Cek kunci JSON
-        const keys = Object.keys(data).map(k => k.toLowerCase());
-        const keyMatches = keys.some(k => nonMediaKeys.includes(k));
-
-        return pathMatches || keyMatches;
-    }
-
     static async addCandidate(tabId, url, mime = '', referer = '', type = 'network', extraMeta = {}) {
         if (tabId < 0) return;
         
@@ -185,7 +211,6 @@ export class Detector {
         
         const now = Date.now();
         
-        // Ambil nama file atau path
         let displayTitle = '';
         try {
             const parsed = new URL(cleanUrl);
@@ -195,7 +220,7 @@ export class Detector {
             displayTitle = cleanUrl.slice(0, 30);
         }
 
-        let cand = {
+        const cand = {
             id: 'cand_' + Math.random().toString(36).substr(2, 9),
             url: cleanUrl,
             displayTitle: displayTitle,
@@ -209,17 +234,7 @@ export class Detector {
             meta: extraMeta
         };
 
-        // Jika unverified, lakukan verifikasi asinkron terbatas
-        if (!cand.verified && cand.kind === 'unverified') {
-            cand = await this.verifyCandidateContent(cand);
-        }
-
-        // Jika terbukti bukan media (respons akun/analytics/claim/challenge), keluarkan dari daftar video!
-        if (cand.kind === 'non_media') {
-            return items.length;
-        }
-
-        // Cek duplikasi
+        // Simpan kandidat langsung agar tidak hilang dari daftar UI
         const existingIndex = items.findIndex(x => x.url === cleanUrl);
         if (existingIndex >= 0) {
             items[existingIndex].time = now;
@@ -227,7 +242,6 @@ export class Detector {
             items[existingIndex].statusLabel = cand.statusLabel;
             items[existingIndex].isMedia = cand.isMedia;
             items[existingIndex].verified = cand.verified;
-            if (cand.extractedMediaUrl) items[existingIndex].extractedMediaUrl = cand.extractedMediaUrl;
         } else {
             items.push(cand);
         }
@@ -239,13 +253,18 @@ export class Detector {
         items = items.slice(-50);
         await chrome.storage.session.set({ [key]: items });
 
-        // Update badge hanya untuk kandidat media yang valid
-        const validMediaCount = items.filter(x => x.isMedia && x.kind !== 'subtitle').length;
-        if (validMediaCount > 0) {
+        // Update badge untuk item yang terdeteksi
+        const mediaCount = items.filter(x => x.kind !== 'subtitle').length;
+        if (mediaCount > 0) {
             await chrome.action.setBadgeBackgroundColor({ color: '#15803d', tabId });
-            await chrome.action.setBadgeText({ text: String(validMediaCount), tabId });
+            await chrome.action.setBadgeText({ text: String(mediaCount), tabId });
         } else {
             await chrome.action.setBadgeText({ text: '', tabId });
+        }
+
+        // Jalankan verifikasi konten di latar belakang tanpa memblokir antrean
+        if (!cand.verified && cand.kind === 'unverified') {
+            this.verifyCandidateContentAsync(tabId, cleanUrl).catch(() => {});
         }
         
         return items.length;
