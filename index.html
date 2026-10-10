@@ -113,7 +113,7 @@ footer{max-width:1136px;margin:36px auto 0;padding:22px 0 30px;border-top:1px so
 footer strong{color:#9c99a6;font-size:11px;letter-spacing:.5px}
 body[data-running="true"] .status-badge{color:#ff6b82;border-color:#753345}
 body[data-running="true"] .status-visual{box-shadow:0 0 35px rgba(243,21,53,0.18)}
-@media(max-width:920px){.nav{gap:12px}.brand-label{display:none}.hero-inner{flex-direction:column;align-items:flex-start}.hero-switcher{width:100%}.workspace{grid-template-columns:1fr}}
+@media(max-width:820px){.nav{gap:12px}.brand-label{display:none}.hero-inner{flex-direction:column;align-items:flex-start}.hero-switcher{width:100%}.workspace{grid-template-columns:1fr}}
 @media(max-width:680px){.shell{padding:0 18px}.nav{padding:10px 16px}.wordmark{font-size:20px}.nav-links{margin-left:auto}.nav-link{font-size:11px;padding:6px 8px}.local{display:none}h1{font-size:38px}.row{grid-template-columns:1fr}}
 
 .laser{display:none;position:fixed;inset:0 0 auto;height:3px;z-index:2000;overflow:hidden;background:#571225;box-shadow:0 0 13px rgba(255,33,74,0.45);pointer-events:none}
@@ -292,7 +292,7 @@ body[data-running="true"] .laser{display:block}
 <div><label for="u-end-time">Selesai Potong (opsional)</label><input id="u-end-time" placeholder="Contoh: 00:01:45"></div>
 </div>
 <div class="subtitle-area" style="margin-top:14px;padding:14px">
-<strong style="display:block;margin-bottom:10px;font-size:11px;color:#fff">Fitur yt-dlp & Subtitle:</strong>
+<strong style="display:block;margin-bottom:10px;font-size:11px;color:#fff">Fitur Tambahan & Subtitle:</strong>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
 <label class="check"><input type="checkbox" id="u-embed-metadata" checked> Embed Metadata</label>
 <label class="check"><input type="checkbox" id="u-embed-thumb" checked> Embed Cover Cover</label>
@@ -577,7 +577,7 @@ finally{$('u-inspect-btn').disabled=false;$('u-inspect-btn').querySelector('span
 if($('u-resolution'))$('u-resolution').onchange=updateStartLabel;
 if($('u-audio-format'))$('u-audio-format').onchange=updateStartLabel;
 
-async function poll(){try{const s=await api('/status');lastSnapshot=s;lastUpdated=new Date();connected=true;$('updated').textContent='Status aplikasi diterima '+lastUpdated.toLocaleTimeString('id-ID');const parts=s.status.split('|');$('speed').textContent=parts.length>1?parts[1].trim():'—';$('eta').textContent=parts.length>2?parts[2].replace(/^\s*ETA\s*/,'').trim():'—';$('stop-activity').disabled=!s.running;if(s.vps){$('folder-section').style.display='none'}else{$('folder-section').style.display=''}if(first){$('folder').value=s.folder;first=false;checkCookieStatus();}$('status').textContent=s.status;document.body.dataset.running=String(s.running);$('activity-badge').textContent=s.running?'BERJALAN':s.status.startsWith('Selesai')||s.status.startsWith('Video selesai')?'SELESAI':s.status.toLowerCase().includes('gagal')?'PERIKSA':'SIAP';updateTransferWarning(s);$('percent-label').textContent=Number(s.percent).toFixed(1).replace(/\.0$/,'')+'%';$('start').disabled=s.running;$('stop').disabled=!s.running;if($('u-start'))$('u-start').disabled=s.running;if($('u-stop'))$('u-stop').disabled=!s.running;$('bar').style.width=s.percent+'%';$('progress').setAttribute('aria-valuenow',s.percent);$('logs').textContent=s.logs.join('\n')||'Belum ada proses.';$('tools').textContent=(s.vps?'VPS · Hasil otomatis dihapus setelah 2 jam · ':'')+'yt-dlp: '+(s.tools.yt?'tersedia':'belum terpasang')+'  ·  FFmpeg: '+(s.tools.ffmpeg?'tersedia':'belum terpasang');
+async function poll(){try{const s=await api('/status');lastSnapshot=s;lastUpdated=new Date();connected=true;$('updated').textContent='Status aplikasi diterima '+lastUpdated.toLocaleTimeString('id-ID');const parts=s.status.split('|');$('speed').textContent=parts.length>1?parts[1].trim():'—';$('eta').textContent=parts.length>2?parts[2].replace(/^\s*ETA\s*/,'').trim():'—';$('stop-activity').disabled=!s.running;if(s.vps){$('folder-section').style.display='none'}else{$('folder-section').style.display=''}if(first){$('folder').value=s.folder;first=false;checkCookieStatus();}$('status').textContent=s.status;document.body.dataset.running=String(s.running);$('activity-badge').textContent=s.running?'BERJALAN':s.status.startsWith('Selesai')||s.status.startsWith('Video selesai')?'SELESAI':s.status.toLowerCase().includes('gagal')?'PERIKSA':'SIAP';updateTransferWarning(s);$('percent-label').textContent=Number(s.percent).toFixed(1).replace(/\.0$/,'')+'%';$('start').disabled=s.running;$('stop').disabled=!s.running;if($('u-start'))$('u-start').disabled=s.running;if($('u-stop'))$('u-stop').disabled=!s.running;$('bar').style.width=s.percent+'%';$('progress').setAttribute('aria-valuenow',s.percent);$('logs').textContent=s.logs.join('\n')||'Belum ada proses.';$('tools').textContent=(s.vps?'VPS · Hasil otomatis dihapus setelah 2 jam · ':'')+'Mesin Inti: '+(s.tools.yt?'tersedia':'belum terpasang')+'  ·  Konektor: '+(s.tools.ffmpeg?'tersedia':'belum terpasang');
 const hasFiles=s.files&&s.files.length>0;$('completed-box').hidden=!hasFiles;
 if(hasFiles){
 const isSuccess=s.status.startsWith('Selesai')||s.status.startsWith('Video selesai');$('completed-box-title').textContent=isSuccess?'File siap diunduh ke perangkat Anda':'File yang berhasil disimpan (subtitle/video):';

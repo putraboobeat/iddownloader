@@ -131,7 +131,7 @@ def add_log(line):
 def build_command(data):
     cmd = downloader()
     if not cmd:
-        raise ValueError('yt-dlp belum ditemukan. Jalankan: python3 -m pip install -U yt-dlp')
+        raise ValueError('Komponen pengunduh belum ditemukan. Jalankan: python3 -m pip install -U yt-dlp')
     if not shutil.which('ffmpeg'):
         raise ValueError('FFmpeg belum ditemukan. Jika memakai Homebrew, jalankan: brew install ffmpeg')
     url = clean_url(data.get('url', ''))
@@ -356,7 +356,7 @@ def run_job(data):
                 STATE['folder'] = str(folder)
                 STATE['target_folder'] = str(folder)
             add_log('Folder hasil: ' + str(folder))
-            status('Memulai proses unduhan yt-dlp…')
+            status('Memulai proses unduhan…')
             cmd, folder, batch_file = build_ytdlp_command(data)
             try:
                 is_ig = 'instagram.com' in data.get('url', '').lower()
@@ -392,7 +392,7 @@ def run_job(data):
                                     
                         add_log('gallery-dl berhasil mengunduh media.')
                     else:
-                        add_log('gallery-dl gagal, mencoba yt-dlp...')
+                        add_log('Proses pertama gagal, mencoba metode alternatif...')
                         run_download(cmd)
                 else:
                     run_download(cmd)
@@ -921,7 +921,7 @@ class Handler(BaseHTTPRequestHandler):
                         out += '\n' + (res2.stdout + '\n' + res2.stderr).strip()
                     add_log(f'Log pembaruan yt-dlp:\n{out}')
                 threading.Thread(target=update_worker, daemon=True).start()
-                return self.send({'ok': True, 'message': 'Pembaruan yt-dlp dijalankan di latar belakang.'})
+                return self.send({'ok': True, 'message': 'Pembaruan komponen pengunduh dijalankan di latar belakang.'})
 
             if self.path == '/clear-files':
                 cleared = 0
@@ -978,7 +978,7 @@ class Handler(BaseHTTPRequestHandler):
                         session_id = self.headers.get('X-App-Session', '')
                         folder = str(Path(data.get('folder') or '~/Downloads').expanduser().resolve())
                         STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder,
-                                     status='Menyiapkan unduhan yt-dlp…', input_url='\n'.join(urls),
+                                     status='Menyiapkan unduhan…', input_url='\n'.join(urls),
                                      video_url='', subtitle_urls=[], files=[], session_id=session_id)
                         threading.Thread(target=run_job, args=(data,), daemon=True).start()
                     return self.send({'ok': True})
