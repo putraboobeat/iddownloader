@@ -207,8 +207,9 @@ def build_ytdlp_command(data):
         cmd += ['--cookies-from-browser', 'chrome']
         add_log('Mencoba membaca sesi Instagram dari Chrome lokal…')
 
-    # Tambahkan User-Agent modern agar tidak diblokir sebagai bot
-    cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
+    # Tambahkan User-Agent agar cocok dengan cookies browser
+    ua = data.get('user_agent') or 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+    cmd += ['--add-header', f'User-Agent:{ua}']
     if is_instagram:
         cmd += ['--add-header', 'Referer:https://www.instagram.com/']
         cmd += ['--add-header', 'Sec-Fetch-Site:same-origin']
@@ -644,7 +645,8 @@ class Handler(BaseHTTPRequestHandler):
             if not target_url:
                 return self.send({'error': 'URL tidak valid'}, 400)
             cmd = get_downloader_cmd() + ['--no-cache-dir', '--no-update', '--dump-single-json', '--socket-timeout', '15']
-            cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
+            ua = self.headers.get('User-Agent') or 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+            cmd += ['--add-header', f'User-Agent:{ua}']
             if 'instagram.com' in target_url.lower():
                 cmd += ['--add-header', 'Referer:https://www.instagram.com/']
                 cmd += ['--add-header', 'Sec-Fetch-Site:same-origin']
@@ -909,6 +911,7 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError('Masukkan minimal satu tautan URL.')
                     data['urls'] = urls
                     data['url'] = urls[0]
+                    data['user_agent'] = self.headers.get('User-Agent')
                     with LOCK:
                         if STATE['running']:
                             raise ValueError('Masih ada unduhan yang berjalan.')
@@ -979,9 +982,13 @@ def main():
             print(f'PERINGATAN: File cookies tidak ditemukan di {cp}', flush=True)
     # Auto-detect cookies dari lokasi default di folder data
     if not COOKIES_PATH:
+        local_cookies = Path(__file__).parent / 'cookies.txt'
         base = VPS_ROOT if VPS_ROOT else Path.home()
         auto_cookies = base / '.cookies' / 'media_cookies.txt'
-        if auto_cookies.is_file():
+        if local_cookies.is_file():
+            COOKIES_PATH = str(local_cookies)
+            print(f'Cookies media sosial otomatis dimuat dari direktori lokal: {local_cookies}', flush=True)
+        elif auto_cookies.is_file():
             COOKIES_PATH = str(auto_cookies)
             print(f'Cookies media sosial otomatis dimuat dari: {auto_cookies}', flush=True)
     port = args.port or (6666 if args.vps else 0)
