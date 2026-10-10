@@ -1988,13 +1988,9 @@
                 <details>
                     <summary>2. Hubungkan ekstensi ke aplikasi</summary>
                     <ol>
-                        <li>Jalankan Mulai.command dari folder aplikasi. Biarkan Terminal terbuka.</li>
-                        <li>Salin alamat aplikasi di bilah browser ini: <strong id="current-app-address"></strong>.</li>
-                        <li>Klik ikon ekstensi → <strong>Pengaturan ekstensi</strong>, atau gunakan tombol pengaturan
-                            pada panel di halaman film.</li>
-                        <li>Tempel alamat tersebut lalu klik <strong>Simpan pengaturan</strong>.</li>
-                        <li>Jika aplikasi dijalankan ulang dengan port berbeda, perbarui alamat pengaturan. Copy link
-                            JSON tidak membutuhkan alamat aplikasi.</li>
+                        <li>OmniFetch Companion kini terhubung secara permanen ke server produksi: <strong id="current-app-address"></strong>. Anda tidak perlu menyetel alamat server secara manual.</li>
+                        <li>Token sesi (X-App-Session) aktif Anda di tab ini: <strong id="current-app-session" style="color:#ffb3c1;font-family:monospace;"></strong>.</li>
+                        <li>Buka Pengaturan Ekstensi lalu tempelkan token sesi di atas untuk sinkronisasi riwayat dan unduhan langsung.</li>
                     </ol>
                 </details>
                 <details>
@@ -2458,7 +2454,7 @@
             history.replaceState(null, '', location.pathname); updateMode();
         }
         window.addEventListener('hashchange', importFromExtension);
-        $('current-app-address').textContent = location.origin; updateMode(); importFromExtension(); poll(); setInterval(poll, 1000);
+        $('current-app-address').textContent = location.origin; if ($('current-app-session')) $('current-app-session').textContent = appSessionId; updateMode(); importFromExtension(); poll(); setInterval(poll, 1000);
     </script>
 </body>
 

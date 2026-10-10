@@ -1,68 +1,49 @@
-OMNIFETCH COMPANION — PANDUAN
+OMNIFETCH COMPANION v2.0.3 — PANDUAN PENGGUNAAN
 
-PASANG SEKALI
-1. Buka Google Chrome dan ketik chrome://extensions di bilah alamat.
-2. Aktifkan Developer mode / Mode developer di kanan atas.
-3. Klik Load unpacked / Muat yang belum dipaketkan.
-4. Pilih folder chrome-extension (folder yang berisi manifest.json).
-5. Klik ikon puzzle Chrome, lalu pin OmniFetch Companion.
+SERVER PERMANEN
+Ekstensi OmniFetch Companion kini terhubung secara permanen ke server produksi:
+https://dw.pmlab.id
+Pengguna tidak perlu lagi mengisi atau menyetel alamat server manual.
 
-CARA PAKAI
-1. Jalankan Mulai.command pada folder aplikasi OmniFetch.
-2. Salin alamat aplikasi yang terbuka, misalnya http://127.0.0.1:51563.
-3. Buka halaman film di Chrome biasa. Jika tab sudah terbuka sebelum ekstensi
-   dipasang, muat ulang halaman.
-4. Selesaikan CAPTCHA sendiri. Putar video, lewati iklan seperti biasa.
-5. Aktifkan subtitle di pemutar jika ingin mengambil subtitle juga.
-6. Saat film mulai diputar, klik ikon ekstensi pada tab film tersebut.
-7. Isi Alamat aplikasi lokal. Alamat ini disimpan untuk pemakaian berikutnya;
-   perbarui jika aplikasi dibuka ulang dengan port berbeda.
-8. Klik Perbarui daftar. Playlist utama config-….json terbaru dipilih otomatis.
-   Klik Ganti sumber (opsional) hanya jika pilihan otomatis bukan film.
-   Nama file saja bukan jaminan: daftar juga bisa berisi iklan atau playlist
-   kualitas tertentu. Bersihkan hasil iklan sebelum memutar film bila perlu.
-9. Pilih subtitle jika tersedia, kemudian klik Kirim ke Downloader.
-10. Aplikasi terbuka dengan tautan terisi. Pilih kualitas dan folder,
-    lalu klik Mulai unduh. Tidak perlu Inspect Element atau Playwright.
+PASANG / PEMBARUAN EKSTENSI
+1. Buka Google Chrome dan buka chrome://extensions di bilah alamat.
+2. Aktifkan Developer mode / Mode developer di pojok kanan atas.
+3. Klik tombol Update (atau Reload pada kartu OmniFetch Companion jika sudah terpasang).
+   Jika baru pertama kali memasang, klik Load unpacked / Muat yang belum dipaketkan,
+   lalu pilih folder "chrome-extension".
+4. Muat ulang (Refresh / F5) tab halaman streaming atau media yang sedang dibuka.
 
-SUBTITLE SAJA
-Pilih subtitle dalam ekstensi lalu klik Kirim subtitle saja.
+AUTENTIKASI & TOKEN SESI (X-App-Session)
+1. Ekstensi menggunakan header autentikasi X-App-Session untuk memisahkan antrean
+   dan riwayat unduhan masing-masing pengguna.
+2. Buka Pengaturan Ekstensi (klik kanan ikon ekstensi -> Options atau tombol ⚙️ di popup):
+   - Masukkan token sesi Anda dari web dashboard dw.pmlab.id, ATAU
+   - Tekan tombol "🔑 Buat Otomatis" untuk menghasilkan token sesi baru seketika.
+3. Klik "Simpan Pengaturan". Anda dapat menguji status sesi dengan tombol "Uji Koneksi Sesi".
 
-JIKA KOSONG ATAU GAGAL
-- Gunakan ekstensi pada tab film, bukan pada tab aplikasi lokal.
-- Muat ulang halaman lalu putar lagi; permintaan sebelum ekstensi terpasang
-  tidak bisa dideteksi secara retroaktif.
-- Ekstensi mendukung domain situs pemutar yang tercantum pada manifest ekstensi.
-  Domain pemutar lain belum dicakup oleh izin ekstensi ini.
-- Ekstensi mengamati URL dan tipe respons, bukan isi respons; JSON biasa
-  tidak otomatis dianggap playlist kecuali namanya config-….json.
-- Tautan dapat kedaluwarsa. Putar ulang dan ambil hasil terbaru.
-- Ekstensi tidak melewati CAPTCHA, membaca cookie, atau menyalin sesi login.
-  Tautan yang membutuhkan cookie atau akses khusus masih bisa ditolak server.
-- Versi aplikasi lama tidak mendukung pengisian otomatis. Gunakan index.html
-  terbaru yang disertakan pada proyek ini.
+CARA MENGUNDUH MEDIA STREAMING (HLS / DASH / MP4)
+1. Buka halaman film / video di situs yang Anda tuju (misal Idlix atau pemutar streaming).
+2. Putar video (Play). Jika ada iklan, tunggu atau lewati iklan hingga video utama berputar.
+3. Buka popup OmniFetch Companion:
+   - Sumber streaming yang tertangkap akan diberi label jelas:
+     [Playlist HLS], [Manifest DASH], atau [Video langsung].
+   - Respons non-media seperti token claim, analitik, dan tracking otomatis disaring keluar.
+   - Respons unverified (.json) yang belum terbukti sebagai media akan menonaktifkan tombol
+     unduh demi mencegah pengiriman URL yang salah.
+4. Pilih sumber video dan subtitle (bila ada).
+5. Klik "⬇ Kirim Playlist ke Server".
+   - Ekstensi akan menampilkan progres pengiriman ke dw.pmlab.id.
+   - Setelah server menerima tugas, status "Pekerjaan Diterima Server" dengan Job ID
+     dan tautan langsung ke Dashboard akan ditampilkan.
 
-PRIVASI
-Daftar kandidat disimpan hanya selama sesi Chrome, maksimal 60 per tab dan
-hanya ditampilkan untuk satu jam terakhir. Tab ditutup: daftar dihapus.
-Hanya alamat aplikasi lokal disimpan secara permanen. URL bertoken tidak
-muncul pada label daftar. URL dipindahkan ke aplikasi melalui fragmen alamat
-hanya setelah klik pengguna, lalu aplikasi menghapus fragmen setelah dibaca.
-Tidak ada pengiriman ke layanan pihak ketiga oleh ekstensi.
+CARA MENGUNDUH SOSIAL MEDIA LANGSUNG (YouTube, IG, TikTok, X)
+1. Buka halaman video YouTube, Reel Instagram, atau TikTok.
+2. Klik popup OmniFetch Companion -> Klik "🚀 Sedot ke dw.pmlab.id".
+3. Tugas otomatis dikirimkan ke server downloader.
 
-PREVIEW ISI PLAYLIST / JSON
-Klik Preview isi playlist / JSON setelah sumber terpilih. Ekstensi membaca ulang
-URL dan menampilkan maksimal 256 KB sebagai teks, dengan token disamarkan.
-Playlist utama menampilkan resolusi yang tersedia. JSON biasa dirapikan.
-Jika HTTP 403 atau timeout, preview tidak dapat diverifikasi. Memutar video
-di tab tidak menjamin permintaan ulang dari ekstensi diterima server.
-
-PANEL DOWNLOAD OTOMATIS (v1.3)
-Setelah playlist config terdeteksi, panel merah hitam muncul di pojok kanan
-bawah halaman Video. Klik Download video untuk membuka form aplikasi.
-Subtitle Indonesia dari sumber video yang sama dipilih bila terdeteksi.
-Isi atau ubah Alamat aplikasi pada panel jika port aplikasi berubah.
-Tombol X menyembunyikan panel sampai halaman dimuat ulang. Panel tidak
-melewati iklan/CAPTCHA dan tidak memulai unduhan tanpa klik pengguna.
-Setelah memperbarui ekstensi, klik Reload di chrome://extensions lalu
-muat ulang halaman film.
+PESAN ERROR DAN SOLUSINYA
+- "Sesi belum terhubung atau kedaluwarsa": Buka Pengaturan dan pastikan token sesi sudah diisi.
+- "Tidak dapat terhubung ke server": Periksa koneksi internet Anda ke dw.pmlab.id.
+- "Waktu koneksi habis (timeout)": Server sedang sibuk; jangan mengirim ulang berulang kali.
+- "Sumber media tidak valid": Sumber yang dipilih bukan stream yang dapat diproses server.
+- "Pekerjaan ditolak server": Server menolak permintaan (periksa log atau batasan server).

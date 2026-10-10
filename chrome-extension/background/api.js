@@ -1,46 +1,131 @@
-import { Config } from './config.js';
+import { BASE_URL, Config } from './config.js';
 
 export class APIClient {
     static async sendJob(payload) {
         const info = await Config.getAppInfo();
-        if (!info.url) throw new Error("Aplikasi OmniFetch belum diatur.");
         
-        const origin = new URL(info.url).origin;
-        if (!origin.startsWith("http")) throw new Error("URL tidak valid.");
-        
+        // 1. Validasi Autentikasi lokal
+        if (!info.token) {
+            const err = new Error("Sesi belum terhubung atau kedaluwarsa. Silakan masukkan Session Token di Pengaturan.");
+            err.code = "AUTH_MISSING";
+            throw err;
+        }
+
+        // 2. Validasi Payload Sumber Media
+        const targetUrl = payload.urls || payload.url;
+        if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.trim()) {
+            const err = new Error("Sumber media tidak valid: URL kosong atau tidak dikenali.");
+            err.code = "INVALID_MEDIA";
+            throw err;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        let res;
         try {
-            const res = await fetch(`${origin}/api/start`, {
+            res = await fetch(`${BASE_URL}/api/start`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-App-Session': info.token || ''
+                    'X-App-Session': info.token
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: controller.signal
             });
-            
-            if (!res.ok) {
-                let errText = "Gagal mengirim tugas.";
-                try {
-                    const errJson = await res.json();
-                    errText = errJson.error || errText;
-                } catch (e) {}
-                throw new Error(errText);
-            }
-            return await res.json();
         } catch (e) {
-            throw new Error(`Koneksi error: ${e.message}`);
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') {
+                const err = new Error("Waktu koneksi habis (timeout 15 detik). Server tidak merespons.");
+                err.code = "TIMEOUT";
+                throw err;
+            }
+            const err = new Error("Tidak dapat terhubung ke server dw.pmlab.id.");
+            err.code = "NETWORK_ERROR";
+            throw err;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        // 3. Klasifikasi Status HTTP
+        if (res.status === 401) {
+            const err = new Error("Sesi belum terhubung atau kedaluwarsa (401 Unauthorized). Silakan periksa Session Token di Pengaturan.");
+            err.code = "AUTH_EXPIRED";
+            throw err;
+        }
+
+        if (res.status === 404) {
+            const err = new Error("Endpoint atau versi server tidak kompatibel (404).");
+            err.code = "INCOMPATIBLE_VERSION";
+            throw err;
+        }
+
+        // 4. Deteksi respons HTML (misal Cloudflare block, reverse proxy error, atau redirect login)
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+            const err = new Error("Server mengembalikan halaman web (HTML), bukan API JSON. Periksa koneksi atau Cloudflare.");
+            err.code = "HTML_RESPONSE";
+            throw err;
+        }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            const err = new Error("Format respons server tidak valid.");
+            err.code = "INVALID_RESPONSE";
+            throw err;
+        }
+
+        // 5. Penanganan Error dari Server
+        if (!res.ok) {
+            const serverMsg = data.error || res.statusText || 'Gagal memproses';
+            if (res.status === 400) {
+                const err = new Error(`Sumber media tidak valid: ${serverMsg}`);
+                err.code = "INVALID_MEDIA";
+                throw err;
+            }
+            const err = new Error(`Pekerjaan ditolak server (${res.status}): ${serverMsg}`);
+            err.code = "REJECTED";
+            throw err;
+        }
+
+        // 6. Validasi Kontrak Pekerjaan Diterima
+        if (!data || !data.job_id) {
+            const err = new Error("Pekerjaan ditolak server: respons tidak menyertakan Job ID.");
+            err.code = "CONTRACT_MISMATCH";
+            throw err;
+        }
+
+        return data; // { job_id: "...", status: "queued" }
+    }
+
+    static async checkSession(token) {
+        if (!token) return { ok: false, message: 'Token sesi kosong' };
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            const res = await fetch(`${BASE_URL}/api/status`, {
+                headers: { 'X-App-Session': token },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            if (res.status === 401) {
+                return { ok: false, code: '401', message: 'Sesi belum terhubung atau ditolak server (401).' };
+            }
+            if (!res.ok) {
+                return { ok: false, code: String(res.status), message: `Server merespons status ${res.status}.` };
+            }
+            return { ok: true, message: 'Koneksi dan sesi valid.' };
+        } catch (e) {
+            return { ok: false, code: 'NETWORK_ERROR', message: 'Tidak dapat terhubung ke server dw.pmlab.id.' };
         }
     }
 
     static async syncCookies(domains) {
         const info = await Config.getAppInfo();
-        if (!info.url || !info.cookieSync) return;
-        
-        const origin = new URL(info.url).origin;
-        if (origin.startsWith('http://') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
-            console.warn("Cookie sync diblokir untuk HTTP non-lokal demi keamanan.");
-            return;
-        }
+        if (!info.token || !info.cookieSync) return;
 
         let allCookies = [];
         for (const d of domains) {
@@ -62,16 +147,18 @@ export class APIClient {
         }
         
         try {
-            const res = await fetch(`${origin}/api/upload-cookies`, {
+            const res = await fetch(`${BASE_URL}/api/upload-cookies`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/plain',
-                    'X-App-Session': info.token || ''
+                    'X-App-Session': info.token
                 },
                 body: netscape
             });
-            if (!res.ok) throw new Error("Gagal mengupload cookie");
+            if (!res.ok) throw new Error("Gagal mengunggah cookie");
         } catch (e) {
+            // Jangan mencatat detail cookie atau token di log
+            console.error("Gagal sinkronisasi cookie.");
             throw e;
         }
     }

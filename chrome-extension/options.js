@@ -1,67 +1,79 @@
-import { Config } from './background/config.js';
+import { Config, BASE_URL } from './background/config.js';
 
-const app = document.getElementById('app');
 const tokenInput = document.getElementById('token');
 const syncInput = document.getElementById('sync');
 const status = document.getElementById('status');
+const btnGenToken = document.getElementById('btn-generate-token');
+
+function showStatus(type, msg) {
+    status.className = type;
+    status.innerHTML = msg;
+    status.style.display = 'block';
+}
 
 (async () => {
     const s = await Config.getAppInfo();
-    app.value = s.url || '';
     if (tokenInput) tokenInput.value = s.token || '';
     if (syncInput) syncInput.checked = !!s.cookieSync;
 })();
 
+if (btnGenToken) {
+    btnGenToken.onclick = () => {
+        // Hasilkan token sesi alphanumeric acak yang aman
+        const randStr = Array.from(crypto.getRandomValues(new Uint8Array(12)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+        tokenInput.value = 'omni' + randStr;
+        showStatus('info', 'Token baru dibuat. Klik <strong>Simpan Pengaturan</strong> untuk mengaktifkannya.');
+    };
+}
+
 document.getElementById('save').onclick = async () => {
     try {
-        const val = app.value.trim();
-        if (!val) throw Error('Alamat aplikasi tidak boleh kosong.');
-        const u = new URL(val.startsWith('http://') || val.startsWith('https://') ? val : 'http://' + val);
-        
-        if (!['http:', 'https:'].includes(u.protocol) || !u.hostname) {
-            throw Error('Gunakan alamat valid.');
-        }
-        
-        const syncVal = syncInput ? syncInput.checked : false;
-        
-        if (u.protocol === 'http:' && !['127.0.0.1', 'localhost'].includes(u.hostname) && syncVal) {
-            throw Error('Sinkronisasi cookie hanya diizinkan untuk HTTPS atau localhost.');
-        }
-        
         const tokenVal = tokenInput ? tokenInput.value.trim() : '';
-        
+        const syncVal = syncInput ? syncInput.checked : false;
+
+        if (tokenVal && !/^[a-zA-Z0-9]+$/.test(tokenVal)) {
+            throw new Error('Token sesi harus berupa kombinasi huruf dan angka (alphanumeric) tanpa spasi atau simbol.');
+        }
+
         if (syncVal) {
             const granted = await chrome.permissions.request({ permissions: ['cookies'] });
-            if (!granted) throw Error('Izin cookie ditolak pengguna.');
+            if (!granted) throw new Error('Izin pembacaan cookie ditolak oleh browser.');
         }
-        
-        const grantedHost = await chrome.permissions.request({ origins: [u.origin + '/*'] });
-        if (!grantedHost) throw Error('Izin akses host ditolak pengguna.');
-        
-        await chrome.storage.local.set({ app: u.origin, token: tokenVal, auto_cookie_sync: syncVal });
-        app.value = u.origin;
-        status.textContent = '✅ Pengaturan tersimpan.';
+
+        await Config.setAppInfo(tokenVal, syncVal);
+        showStatus('success', '✅ Pengaturan berhasil disimpan untuk <strong>' + BASE_URL + '</strong>.');
     } catch (e) {
-        status.textContent = '❌ ' + e.message;
+        showStatus('error', '❌ ' + e.message);
     }
 };
 
 document.getElementById('test').onclick = async () => {
-    try {
-        status.textContent = 'Mencoba koneksi...';
-        const val = app.value.trim();
-        if (!val) throw Error('Alamat kosong');
-        const u = new URL(val.startsWith('http') ? val : 'http://' + val);
-        
-        // Ensure permission exists
-        const hasPerm = await chrome.permissions.contains({ origins: [u.origin + '/*'] });
-        if (!hasPerm) throw Error('Izin host belum diberikan. Simpan pengaturan terlebih dahulu.');
-        
-        const res = await fetch(u.origin + '/api/diagnostic');
-        if (!res.ok) throw Error('Status HTTP ' + res.status);
-        const data = await res.json();
-        status.textContent = `✅ Koneksi berhasil! (Versi: ${data.version || '2.0'})`;
-    } catch(e) {
-        status.textContent = '❌ Koneksi gagal: ' + e.message;
+    const tokenVal = tokenInput ? tokenInput.value.trim() : '';
+    if (!tokenVal) {
+        showStatus('error', '❌ Masukkan atau buat token sesi terlebih dahulu sebelum menguji.');
+        return;
     }
+
+    if (!/^[a-zA-Z0-9]+$/.test(tokenVal)) {
+        showStatus('error', '❌ Token sesi tidak valid: harus huruf dan angka (alphanumeric).');
+        return;
+    }
+
+    showStatus('info', 'Menguji koneksi ke ' + BASE_URL + '…');
+
+    chrome.runtime.sendMessage({ type: 'CHECK_SESSION', token: tokenVal }, (res) => {
+        if (chrome.runtime.lastError) {
+            showStatus('error', '❌ Gagal berkomunikasi dengan background worker: ' + chrome.runtime.lastError.message);
+            return;
+        }
+
+        if (res && res.ok) {
+            showStatus('success', '✅ Koneksi dan sesi valid! Server <strong>' + BASE_URL + '</strong> merespons dengan baik.');
+        } else if (res && res.code === '401') {
+            showStatus('error', '❌ Sesi belum terhubung atau kedaluwarsa (401 Unauthorized). Silakan periksa kembali token Anda.');
+        } else {
+            showStatus('error', '❌ ' + (res?.message || 'Gagal terhubung ke server dw.pmlab.id.'));
+        }
+    });
 };

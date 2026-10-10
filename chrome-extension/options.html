@@ -2,41 +2,110 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <title>Pengaturan OmniFetch</title>
+    <title>Pengaturan OmniFetch Companion</title>
     <style>
-        body { max-width:540px; margin:60px auto; padding:24px; background:#111116; color:white; font:15px/1.7 system-ui; }
-        h1 { color:#ff263e; }
-        input[type="text"], input[type="password"], button { box-sizing:border-box; width:100%; padding:14px; margin:10px 0; border-radius:9px; border:1px solid #444; background:#22222a; color:white; font:inherit; }
-        button { background:#e7193f; cursor:pointer; font-weight:700; border:none; transition:opacity 0.2s; }
-        button:hover { opacity:0.9; }
-        p { color:#b8b8c4; font-size:13px; }
-        label { font-size:13px; font-weight:600; color:#ddd; }
-        .checkbox-wrap { display:flex; align-items:center; gap:10px; margin:20px 0; background:#1a1a24; padding:15px; border-radius:8px; border:1px solid #333; }
-        .checkbox-wrap input { width:auto; margin:0; transform:scale(1.3); }
-        #status { font-weight: bold; }
+        body {
+            max-width: 520px;
+            margin: 40px auto;
+            padding: 24px;
+            background: #0d0508;
+            color: #f5f5f7;
+            font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        h1 { color: #ff3d58; margin-top: 0; font-size: 22px; display: flex; align-items: center; gap: 8px; }
+        .server-card {
+            background: #1a0a10;
+            border: 1px solid #3d1420;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
+        .server-card .title { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .server-card .server-val { font-size: 15px; font-weight: 700; color: #ff8fa3; display: flex; align-items: center; justify-content: space-between; }
+        .badge-fixed { background: #3d0f19; color: #ff3d58; padding: 2px 8px; border-radius: 12px; font-size: 10px; border: 1px solid #75142a; }
+        
+        label { font-size: 12px; font-weight: 600; color: #ffb3c1; display: block; margin-top: 14px; margin-bottom: 6px; }
+        input[type="text"], input[type="password"] {
+            box-sizing: border-box; width: 100%; padding: 11px 13px;
+            border-radius: 8px; border: 1px solid #3d1420; background: #000;
+            color: #fff; font-size: 13px;
+        }
+        input:focus { outline: 1px solid #ff3d58; }
+        
+        .token-help { font-size: 11px; color: #888; margin-top: 4px; margin-bottom: 12px; }
+        
+        .row-btns { display: flex; gap: 10px; margin-top: 10px; }
+        button {
+            box-sizing: border-box; padding: 11px 16px; border-radius: 8px;
+            border: none; cursor: pointer; font-size: 13px; font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .btn-primary { background: #e5163c; color: white; flex: 2; }
+        .btn-primary:hover { background: #ff2a50; }
+        .btn-secondary { background: #2a0b12; border: 1px solid #571625; color: #ffb3c1; flex: 1; }
+        .btn-secondary:hover { background: #3d0f19; }
+        
+        .checkbox-wrap {
+            display: flex; align-items: flex-start; gap: 10px; margin: 18px 0;
+            background: #14060b; padding: 12px 14px; border-radius: 8px; border: 1px solid #2a0b12;
+        }
+        .checkbox-wrap input { margin-top: 3px; transform: scale(1.2); }
+        .checkbox-wrap label { margin: 0; font-size: 12px; color: #ddd; font-weight: normal; cursor: pointer; }
+
+        #status {
+            margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 12px;
+            display: none; line-height: 1.4; word-break: break-word;
+        }
+        #status.success { display: block; background: #082813; color: #86efac; border: 1px solid #166534; }
+        #status.error { display: block; background: #380b15; color: #ff99aa; border: 1px solid #75142a; }
+        #status.info { display: block; background: #201a08; color: #fde047; border: 1px solid #78350f; }
+
+        .footer-note { margin-top: 24px; font-size: 11px; color: #666; border-top: 1px solid #220810; padding-top: 14px; }
     </style>
 </head>
 <body>
-    <h1>Pengaturan OmniFetch Companion</h1>
+    <h1>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Pengaturan OmniFetch Companion
+    </h1>
     
-    <label for="app">Alamat Aplikasi / VPS OmniFetch</label>
-    <input type="text" id="app" placeholder="https://dw.pmlab.id atau http://127.0.0.1:6666">
-    <p>Salin alamat OmniFetch yang sedang berjalan di VPS atau komputer lokal. (Wajib HTTPS untuk server nonlokal)</p>
+    <div class="server-card">
+        <div class="title">Server Backend Produksi</div>
+        <div class="server-val">
+            <span>https://dw.pmlab.id</span>
+            <span class="badge-fixed">Terkunci Permanen</span>
+        </div>
+    </div>
     
-    <label for="token">Session Token</label>
-    <input type="password" id="token" placeholder="Tempel token X-App-Session jika diminta">
-    
+    <label for="token">Session Token (X-App-Session)</label>
+    <div style="display:flex; gap:8px;">
+        <input type="text" id="token" placeholder="Contoh: omni9a8f7c6e5d4b3a2" autocomplete="off" spellcheck="false" style="flex:1;">
+        <button type="button" class="btn-secondary" id="btn-generate-token" style="white-space:nowrap; padding:10px 12px; font-size:11px;" title="Buat token acak alphanumeric">🔑 Buat Otomatis</button>
+    </div>
+    <div class="token-help">
+        Digunakan untuk memasangkan sesi unduhan Anda dengan server dw.pmlab.id. Anda dapat memasukkan token sesi dari Dashboard atau menekan <em>Buat Otomatis</em>.
+    </div>
+
     <div class="checkbox-wrap">
         <input type="checkbox" id="sync">
-        <label for="sync" style="font-size:14px;color:white">Sinkronisasi Cookie Otomatis (Eksperimental)</label>
+        <div>
+            <label for="sync"><strong>Sinkronisasi Cookie Otomatis (Eksperimental)</strong></label>
+            <div style="font-size:11px; color:#888; margin-top:2px;">
+                Meneruskan sesi browser (Instagram/TikTok/YouTube) secara aman hanya ke server permanen dw.pmlab.id.
+            </div>
+        </div>
     </div>
-    <p style="margin-top:-10px;font-size:12px">Membaca cookie sesi (Instagram, TikTok, YouTube) dan mengirimkannya ke OmniFetch. Aktifkan hanya untuk VPS Anda sendiri.</p>
     
-    <div style="display:flex;gap:10px;">
-        <button id="save" style="flex:2">Simpan pengaturan</button>
-        <button id="test" style="flex:1;background:#333;color:#fff">Uji Koneksi</button>
+    <div class="row-btns">
+        <button id="save" class="btn-primary">Simpan Pengaturan</button>
+        <button id="test" class="btn-secondary">Uji Koneksi Sesi</button>
     </div>
-    <p id="status" role="status"></p>
+    
+    <div id="status" role="status"></div>
+
+    <div class="footer-note">
+        Ekstensi dikonfigurasi permanen untuk <strong>https://dw.pmlab.id</strong>. Izin host dw.pmlab.id sudah otomatis aktif tanpa perlu pengaturan manual. Izin situs sumber video dimintakan secara terpisah hanya saat dibutuhkan.
+    </div>
 
     <script src="options.js" type="module"></script>
 </body>

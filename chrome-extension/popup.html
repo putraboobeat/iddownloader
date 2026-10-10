@@ -6,60 +6,91 @@
   <style>
     * { box-sizing: border-box; }
     body {
-      width: 360px; margin: 0; padding: 20px;
+      width: 360px; max-height: 580px; overflow-y: auto; margin: 0; padding: 18px;
       background: #0d0508; color: #f5f5f7;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       line-height: 1.5;
     }
     
     /* Header */
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-    h1 { font-size: 20px; margin: 0; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    h1 { font-size: 19px; margin: 0; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
     h1 svg { width: 20px; height: 20px; color: #ff3d58; }
     h1 span { color: #ff3d58; font-weight: 800; }
     .badge { background: #3d0f19; color: #ff8fa3; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; border: 1px solid #75142a; }
 
     /* Cards */
-    .card { background: #1a0a10; border: 1px solid #3d1420; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .card { background: #1a0a10; border: 1px solid #3d1420; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
     .card-title { font-size: 13px; font-weight: 600; color: #ffb3c1; margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px; }
     
     /* Direct Download Section */
-    #direct-dl-section { display: none; text-align: center; }
+    #direct-dl-section { display: none; }
     .url-preview { background: #000; padding: 8px; border-radius: 6px; font-size: 11px; color: #aaa; word-break: break-all; margin-bottom: 12px; border: 1px solid #2a0b12; }
     .btn-hero {
       width: 100%; background: linear-gradient(135deg, #c9153d, #ff3d58);
-      color: #fff; border: none; padding: 14px; border-radius: 10px;
-      font-size: 14px; font-weight: 700; cursor: pointer;
+      color: #fff; border: none; padding: 12px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
       box-shadow: 0 4px 14px rgba(201,21,61,0.3); transition: transform 0.1s;
     }
-    .btn-hero:hover { transform: scale(1.02); }
-    .btn-hero:active { transform: scale(0.98); }
-    .btn-hero:disabled { background: #444; box-shadow: none; cursor: default; transform: none; color: #888; }
+    .btn-hero:hover:not(:disabled) { transform: scale(1.02); }
+    .btn-hero:active:not(:disabled) { transform: scale(0.98); }
+    .btn-hero:disabled { background: #444; box-shadow: none; cursor: not-allowed; transform: none; color: #888; }
 
     /* Streaming Sniffer Section */
     #sniffer-section { display: none; }
     label { display: block; font-size: 11px; color: #aaa; margin-bottom: 6px; font-weight: 600; }
     select, input {
       width: 100%; background: #000; border: 1px solid #3d1420; color: #fff;
-      padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 12px;
+      padding: 9px; border-radius: 8px; font-size: 11px; margin-bottom: 10px;
     }
     select:focus, input:focus { outline: 1px solid #ff3d58; }
     .row-btns { display: flex; gap: 8px; }
     .btn {
       flex: 1; background: #2a0b12; border: 1px solid #571625; color: #ffb3c1;
-      padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+      padding: 10px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
     }
-    .btn:hover { background: #3d0f19; }
+    .btn:hover:not(:disabled) { background: #3d0f19; }
     .btn.primary { background: #e5163c; color: #fff; border-color: #ff3d58; }
+    .btn.primary:hover:not(:disabled) { background: #ff2a50; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Status Boxes placed directly near action buttons */
+    .action-status {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      display: none;
+      word-break: break-word;
+    }
+    .action-status.error {
+      display: block;
+      background: #380b15;
+      color: #ff99aa;
+      border: 1px solid #75142a;
+    }
+    .action-status.success {
+      display: block;
+      background: #082813;
+      color: #86efac;
+      border: 1px solid #166534;
+    }
+    .action-status.loading {
+      display: block;
+      background: #201a08;
+      color: #fde047;
+      border: 1px solid #78350f;
+    }
 
     /* Extras */
     details { font-size: 11px; color: #888; margin-top: 10px; }
     summary { cursor: pointer; color: #ff7590; font-weight: 600; margin-bottom: 8px; }
-    #status { font-size: 12px; margin-top: 14px; text-align: center; color: #ffb3c1; min-height: 18px; }
     
-    .footer-links { display: flex; justify-content: space-between; margin-top: 16px; font-size: 11px; }
+    .footer-links { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 11px; }
     .footer-links a, .footer-links button { color: #888; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
-    .footer-links button:hover { color: #fff; }
+    .footer-links a:hover, .footer-links button:hover { color: #fff; }
   </style>
 </head>
 <body>
@@ -69,31 +100,35 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       OMNI<span>FETCH</span>
     </h1>
-    <span class="badge">v2.0.2</span>
+    <span class="badge">v2.0.3</span>
   </header>
 
   <!-- DIRECT DOWNLOAD CARD (For YT, IG, TT, Twitter) -->
   <div class="card" id="direct-dl-section">
     <h2 class="card-title">✨ Unduh Halaman Ini</h2>
     <div class="url-preview" id="current-url">Mendeteksi URL...</div>
-    <button class="btn-hero" id="btn-dl-direct">🚀 Sedot ke VPS Sekarang</button>
+    <button class="btn-hero" id="btn-dl-direct">🚀 Sedot ke dw.pmlab.id</button>
+    <div class="action-status" id="direct-status" role="alert"></div>
   </div>
 
   <!-- STREAMING SNIFFER CARD (For Movies/HLS) -->
   <div class="card" id="sniffer-section">
     <h2 class="card-title">🎬 Detektor Video Streaming</h2>
-    <p style="font-size:11px; color:#888; margin-top:0;">Putar film di web, OmniFetch akan menangkap HLS / Playlist rahasianya.</p>
+    <p style="font-size:11px; color:#888; margin-top:0; margin-bottom:10px;">Putar video/film di halaman web untuk menangkap playlist streaming.</p>
     
-    <label>Sumber Video Terdeteksi</label>
+    <label for="media">Sumber Media Terdeteksi</label>
     <select id="media"><option value="">Menunggu video diputar...</option></select>
     
-    <label>Subtitle Tambahan</label>
+    <label for="subtitle">Subtitle Tambahan</label>
     <select id="subtitle"><option value="">Tanpa subtitle tambahan</option></select>
     
     <div class="row-btns">
-      <button class="btn primary" id="send">Unduh Video</button>
+      <button class="btn primary" id="send">⬇ Kirim Playlist ke Server</button>
       <button class="btn" id="send-sub">Subtitle Saja</button>
     </div>
+
+    <!-- Error/Success status positioned IMMEDIATELY under action buttons -->
+    <div class="action-status" id="sniffer-status" role="alert"></div>
     
     <div style="margin-top: 10px;">
       <button class="btn" id="deep-analysis" style="width:100%; border-color:#d97706; color:#fbbf24;">🔍 Analisis Mendalam DOM</button>
@@ -104,31 +139,29 @@
     
     <details>
       <summary>Opsi Lanjutan</summary>
-      <label>Nama File Khusus</label>
+      <label for="name">Nama File Khusus</label>
       <input id="name" placeholder="Biarkan kosong untuk otomatis">
       <div class="row-btns" style="margin-top:8px">
-        <button class="btn" id="refresh">🔄 Perbarui Jaringan</button>
+        <button class="btn" id="refresh">🔄 Perbarui Daftar</button>
         <button class="btn" id="clear">🗑️ Bersihkan</button>
       </div>
     </details>
   </div>
 
-  <div class="card" style="padding:12px">
-    <h2 class="card-title" style="margin-bottom:6px">🍪 Auto Cookie Sync</h2>
-    <p style="font-size:10px; color:#888; margin-top:0;">Sinkronisasi cookie background otomatis berjalan. Atau paksa manual sekarang.</p>
-    <button class="btn" id="sync-cookies" style="width:100%; padding:8px">Paksa Sinkronisasi Cookie</button>
+  <div class="card" style="padding:10px 14px">
+    <h2 class="card-title" style="margin-bottom:4px">🍪 Cookie Sync (Instagram/TikTok/YT)</h2>
+    <button class="btn" id="sync-cookies" style="width:100%; padding:7px; font-size:11px;">Paksa Sinkronisasi Cookie</button>
+    <div class="action-status" id="sync-status" role="alert"></div>
   </div>
-
-  <div id="status"></div>
 
   <div class="footer-links">
-    <button id="settings">⚙️ Pengaturan Aplikasi</button>
-    <a href="#" id="open-app">Buka Dashboard</a>
+    <button id="settings">⚙️ Pengaturan Token</button>
+    <a href="#" id="open-app">Buka Dashboard (dw.pmlab.id)</a>
   </div>
-  <div style="text-align:center; margin-top:16px;">
-    <button id="check-update" style="background:transparent; border:1px solid #3d1420; color:#ffb3c1; border-radius:20px; padding:4px 12px; font-size:10px; cursor:pointer;">Pembaruan: v<span id="current-version">...</span></button>
+  <div style="text-align:center; margin-top:12px;">
+    <span style="font-size:10px; color:#555;">OmniFetch Companion v<span id="current-version">2.0.3</span> &bull; dw.pmlab.id</span>
   </div>
 
-  <script src="popup.js"></script>
+  <script src="popup.js" type="module"></script>
 </body>
 </html>
