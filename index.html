@@ -194,7 +194,6 @@ body[data-running="true"] .laser{display:block}
 <nav class="nav-links" aria-label="Navigasi utama">
 <button type="button" class="nav-link" id="nav-stream"><svg><use href="#i-film"/></svg>Streaming Film</button>
 <button type="button" class="nav-link active" id="nav-universal"><svg><use href="#i-globe"/></svg>Downloader Universal</button>
-<button type="button" class="cookie-badge" id="btn-cookie-modal" title="Klik untuk mengelola cookies media sosial"><span class="cookie-dot" id="cookie-status-dot"></span><span id="cookie-status-text">Cookie Medsos</span></button>
 <button type="button" class="nav-link" id="nav-guide"><svg><use href="#i-book"/></svg>Panduan</button>
 </nav>
 <span class="local"><span class="dot"></span><span id="env-badge">Aktif</span></span>
@@ -242,7 +241,6 @@ body[data-running="true"] .laser{display:block}
 <textarea id="u-urls" placeholder="Tempel tautan di sini:&#10;https://www.instagram.com/p/... (Post / Carousel)&#10;https://www.instagram.com/reel/... (Reels)&#10;https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@..." required spellcheck="false" style="height:86px"></textarea>
 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
 <button type="button" class="button primary" id="u-inspect-btn" style="flex:1;padding:12px"><svg><use href="#i-search"/></svg><span>🔍 1. Scan & Analisis Pilihan Format</span></button>
-<button type="button" class="button" id="u-open-cookie-btn" style="font-size:11px"><svg><use href="#i-key"/></svg>🍪 Pasang Cookie Medsos</button>
 </div>
 
 <div id="u-inspect-card" hidden style="margin-top:16px;padding:16px;background:#171115;border:1px solid #571e2d;border-radius:14px;box-shadow:0 8px 30px #0008">
@@ -337,38 +335,7 @@ body[data-running="true"] .laser{display:block}
     <video id="modal-video" controls autoplay playsinline style="width:100%;max-height:68vh;border-radius:10px;background:#000"></video>
   </div>
 </div>
-<div id="cookie-modal" class="modal-overlay" hidden style="display:none">
-  <div class="modal-card">
-    <div class="modal-head">
-      <h3>🍪 Pengaturan Cookie Media Sosial</h3>
-      <button type="button" class="close-btn" id="close-cookie-modal" aria-label="Tutup"><svg><use href="#i-x"/></svg></button>
-    </div>
-    <p style="font-size:12px;color:#aaa;margin-top:0">Instagram, TikTok, dan YouTube membutuhkan sesi akun (cookies.txt) agar unduhan tidak diblokir atau kena batas login.</p>
-    <div id="cookie-status-box" style="padding:11px 14px;border-radius:9px;background:#1e151a;border:1px solid #4a212e;margin-bottom:14px;font-size:12px">
-      Status cookie di server: <strong id="cookie-box-state">Memeriksa…</strong>
-    </div>
-    <div class="drop-zone" id="cookie-drop-zone">
-      <svg style="width:30px;height:30px;color:#ff3d58;margin:auto;display:block"><use href="#i-download"/></svg>
-      <p style="margin:8px 0 3px;font-weight:600">Pilih atau Tarik File cookies.txt ke Sini</p>
-      <small style="color:#888">Klik area ini untuk memilih file dari komputer</small>
-      <input type="file" id="cookie-file-input" accept=".txt" style="display:none">
-    </div>
-    <label for="cookie-text" style="margin-top:14px">Atau tempel isi cookies.txt secara manual:</label>
-    <textarea id="cookie-text" placeholder="# Netscape HTTP Cookie File&#10;.instagram.com&#9;TRUE&#9;/&#9;TRUE&#9;0&#9;sessionid&#9;..." style="height:90px;font-size:11px;font-family:monospace"></textarea>
-    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-      <button type="button" class="button primary" id="btn-save-cookies" style="flex:1;min-width:140px">Simpan Cookie</button>
-      <button type="button" class="button" id="btn-sync-guide" style="font-size:11px">Panduan Ekstensi</button>
-      <button type="button" class="button" id="btn-close-cookie-btn" style="font-size:11px">✕ Tutup</button>
-    </div>
-    <div id="cookie-feedback" style="margin-top:10px;font-size:12px" role="status"></div>
-    <div id="cookie-guide-text" hidden style="margin-top:14px;padding:12px;background:#18181e;border-radius:8px;font-size:11px;line-height:1.6;color:#bbb">
-      <strong style="color:#fff">Cara Praktis dengan Ekstensi Chrome:</strong><br>
-      1. Buka tab Instagram / YouTube yang sudah login.<br>
-      2. Klik ikon ekstensi di toolbar → Klik <strong>"🚀 Sinkronkan Cookie ke Downloader"</strong>.<br>
-      Ekstensi otomatis mengirim cookie ke aplikasi/VPS Anda tanpa ribet export file!
-    </div>
-  </div>
-</div>
+
 </main>
 <script>
 const token='__APP_TOKEN__', $=id=>document.getElementById(id);let first=true,lastSnapshot=null,lastUpdated=null,connected=false,progressSignature="",progressChangedAt=Date.now();
@@ -408,62 +375,7 @@ const v=$('modal-video');if(v){v.src=streamUrl;v.play().catch(()=>{});}
 $('close-video-modal').onclick=closeVideoModal;
 $('video-modal').onclick=e=>{if(e.target===$('video-modal'))closeVideoModal();};
 
-async function checkCookieStatus(){
-try{const res=await api('/cookies-status');const loaded=res.loaded;
-if($('cookie-status-dot'))$('cookie-status-dot').style.background=loaded?'#22c55e':'#888';
-if($('btn-cookie-modal'))$('btn-cookie-modal').classList.toggle('active',Boolean(loaded));
-if($('cookie-status-text'))$('cookie-status-text').textContent=loaded?'Cookie: Aktif':'Cookie: Belum Ada';
-let detail='Belum ada cookie media sosial dimuat.';
-if(loaded){
-const parts=[];if(res.has_instagram)parts.push('Instagram');if(res.has_tiktok)parts.push('TikTok');if(res.has_youtube)parts.push('YouTube');
-detail='Cookie aktif ('+(parts.join(', ')||'Medsos')+') · '+(res.size?Math.round(res.size/1024)+' KB':'');
-}
-if($('cookie-box-state'))$('cookie-box-state').textContent=detail;
-}catch(e){}
-}
-function openCookieModal(){
-const m=$('cookie-modal');if(m){m.hidden=false;m.classList.add('is-open');m.style.display='flex';}
-checkCookieStatus();
-if($('cookie-feedback'))$('cookie-feedback').textContent='';
-}
-function closeCookieModal(){
-const m=$('cookie-modal');if(m){m.hidden=true;m.classList.remove('is-open');m.style.display='none';}
-}
-$('btn-cookie-modal').onclick=openCookieModal;
-if($('u-open-cookie-btn'))$('u-open-cookie-btn').onclick=openCookieModal;
-$('close-cookie-modal').onclick=closeCookieModal;
-if($('btn-close-cookie-btn'))$('btn-close-cookie-btn').onclick=closeCookieModal;
-$('cookie-modal').onclick=e=>{if(e.target===$('cookie-modal'))closeCookieModal();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Esc'){closeCookieModal();closeVideoModal();}});
-$('btn-sync-guide').onclick=()=>{$('cookie-guide-text').hidden=!$('cookie-guide-text').hidden;};
-
-const dropZone=$('cookie-drop-zone'),fileInput=$('cookie-file-input');
-dropZone.onclick=()=>fileInput.click();
-dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
-dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
-dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('dragover');if(e.dataTransfer.files[0])handleCookieFile(e.dataTransfer.files[0]);};
-fileInput.onchange=()=>{if(fileInput.files[0])handleCookieFile(fileInput.files[0]);};
-
-function handleCookieFile(file){
-const reader=new FileReader();
-reader.onload=e=>{saveCookieText(e.target.result);};
-reader.readAsText(file);
-}
-async function saveCookieText(text){
-$('cookie-feedback').textContent='Menyimpan cookie…';
-try{
-const res=await fetch('/upload-cookies',{method:'POST',headers:{'X-App-Token':token,'Content-Type':'text/plain'},body:text});
-const j=await res.json();
-if(!res.ok)throw Error(j.error||'Gagal mengunggah cookie');
-$('cookie-feedback').style.color='#4ade80';
-$('cookie-feedback').textContent='✅ '+j.message;
-checkCookieStatus();
-}catch(e){
-$('cookie-feedback').style.color='#ff8d9e';
-$('cookie-feedback').textContent='❌ '+e.message;
-}
-}
-$('btn-save-cookies').onclick=()=>{const val=$('cookie-text').value.trim();if(!val){$('cookie-feedback').textContent='Masukkan atau pilih file cookie terlebih dahulu.';return;}saveCookieText(val);};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Esc'){closeVideoModal();}});
 
 let currentInspectData=null,currentSelectedType='video';
 
@@ -576,7 +488,7 @@ finally{$('u-inspect-btn').disabled=false;$('u-inspect-btn').querySelector('span
 if($('u-resolution'))$('u-resolution').onchange=updateStartLabel;
 if($('u-audio-format'))$('u-audio-format').onchange=updateStartLabel;
 
-async function poll(){try{const s=await api('/status');lastSnapshot=s;lastUpdated=new Date();connected=true;$('updated').textContent='Status aplikasi diterima '+lastUpdated.toLocaleTimeString('id-ID');const parts=s.status.split('|');$('speed').textContent=parts.length>1?parts[1].trim():'—';$('eta').textContent=parts.length>2?parts[2].replace(/^\s*ETA\s*/,'').trim():'—';$('stop-activity').disabled=!s.running;if(s.vps){$('folder-section').style.display='none'}else{$('folder-section').style.display=''}if(first){$('folder').value=s.folder;first=false;checkCookieStatus();}$('status').textContent=s.status;document.body.dataset.running=String(s.running);$('activity-badge').textContent=s.running?'BERJALAN':s.status.startsWith('Selesai')||s.status.startsWith('Video selesai')?'SELESAI':s.status.toLowerCase().includes('gagal')?'PERIKSA':'SIAP';updateTransferWarning(s);$('percent-label').textContent=Number(s.percent).toFixed(1).replace(/\.0$/,'')+'%';$('start').disabled=s.running;$('stop').disabled=!s.running;if($('u-start'))$('u-start').disabled=s.running;if($('u-stop'))$('u-stop').disabled=!s.running;$('bar').style.width=s.percent+'%';$('progress').setAttribute('aria-valuenow',s.percent);$('logs').textContent=s.logs.join('\n')||'Belum ada proses.';$('tools').textContent=(s.vps?'VPS · Hasil otomatis dihapus setelah 2 jam · ':'')+'Mesin Inti: '+(s.tools.yt?'tersedia':'belum terpasang')+'  ·  Konektor: '+(s.tools.ffmpeg?'tersedia':'belum terpasang');
+async function poll(){try{const s=await api('/status');lastSnapshot=s;lastUpdated=new Date();connected=true;$('updated').textContent='Status aplikasi diterima '+lastUpdated.toLocaleTimeString('id-ID');const parts=s.status.split('|');$('speed').textContent=parts.length>1?parts[1].trim():'—';$('eta').textContent=parts.length>2?parts[2].replace(/^\s*ETA\s*/,'').trim():'—';$('stop-activity').disabled=!s.running;if(s.vps){$('folder-section').style.display='none'}else{$('folder-section').style.display=''}if(first){$('folder').value=s.folder;first=false;}$('status').textContent=s.status;document.body.dataset.running=String(s.running);$('activity-badge').textContent=s.running?'BERJALAN':s.status.startsWith('Selesai')||s.status.startsWith('Video selesai')?'SELESAI':s.status.toLowerCase().includes('gagal')?'PERIKSA':'SIAP';updateTransferWarning(s);$('percent-label').textContent=Number(s.percent).toFixed(1).replace(/\.0$/,'')+'%';$('start').disabled=s.running;$('stop').disabled=!s.running;if($('u-start'))$('u-start').disabled=s.running;if($('u-stop'))$('u-stop').disabled=!s.running;$('bar').style.width=s.percent+'%';$('progress').setAttribute('aria-valuenow',s.percent);$('logs').textContent=s.logs.join('\n')||'Belum ada proses.';$('tools').textContent=(s.vps?'VPS · Hasil otomatis dihapus setelah 2 jam · ':'')+'Mesin Inti: '+(s.tools.yt?'tersedia':'belum terpasang')+'  ·  Konektor: '+(s.tools.ffmpeg?'tersedia':'belum terpasang');
 const hasFiles=s.files&&s.files.length>0;$('completed-box').hidden=!hasFiles;
 if(hasFiles){
 const isSuccess=s.status.startsWith('Selesai')||s.status.startsWith('Video selesai');$('completed-box-title').textContent=isSuccess?'File siap diunduh ke perangkat Anda':'File yang berhasil disimpan (subtitle/video):';
