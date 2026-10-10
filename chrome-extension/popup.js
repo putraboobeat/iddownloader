@@ -175,3 +175,40 @@ $('sync-cookies').onclick = async () => {
     btn.disabled = false;
   }
 };
+
+// === Updater Logic ===
+const currentVersion = chrome.runtime.getManifest().version;
+$('current-version').textContent = currentVersion;
+
+$('check-update').onclick = async () => {
+  const btn = $('check-update');
+  const ogText = btn.innerHTML;
+  btn.textContent = 'Mengecek...';
+  try {
+    const { app } = await getApp();
+    if (!app) throw Error('Atur alamat Dashboard dulu.');
+    
+    const res = await fetch(new URL(app).origin + '/api/version');
+    const data = await res.json();
+    
+    // Compare versions
+    const serverV = data.version;
+    if (serverV && serverV !== currentVersion) {
+      btn.style.background = '#e5163c';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#ff3d58';
+      btn.textContent = '🚀 Update ke v' + serverV;
+      
+      btn.onclick = () => {
+        chrome.tabs.create({ url: new URL(app).origin + '/extension.zip' });
+        alert("PERHATIAN:\n\n1. File ZIP ekstensi versi terbaru akan terunduh.\n2. Ekstrak file ZIP tersebut.\n3. Timpa/Replace folder ekstensi Anda yang lama.\n4. Buka chrome://extensions dan klik ikon 'Reload ⟳' pada OmniFetch Companion.\n\nSelesai!");
+      };
+    } else {
+      btn.textContent = '✅ Anda menggunakan versi terbaru';
+      setTimeout(() => { btn.innerHTML = ogText; }, 3000);
+    }
+  } catch(e) {
+    btn.textContent = 'Gagal mengecek';
+    setTimeout(() => { btn.innerHTML = ogText; }, 3000);
+  }
+};

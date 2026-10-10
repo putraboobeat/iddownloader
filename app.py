@@ -647,6 +647,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=86400')
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == '/api/version':
+            version = "latest"
+            manifest_path = Path(__file__).with_name('chrome-extension') / 'manifest.json'
+            if manifest_path.exists():
+                try:
+                    version = json.loads(manifest_path.read_text()).get('version', 'latest')
+                except Exception:
+                    pass
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({'version': version}).encode())
         elif self.path == '/extension.zip':
             import io, zipfile
             ext_dir = Path(__file__).with_name('chrome-extension')
