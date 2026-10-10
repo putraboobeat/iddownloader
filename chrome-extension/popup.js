@@ -1,93 +1,177 @@
-let tab,items=[],manualMedia=false,manualSubtitle=false;
-function rank(item){return item.kind==='config'?3:item.kind==='playlist'?2:item.kind==='video'?1:0;}
-function showSelection(){resetPreview();const chosen=items.find(x=>x.url===$('media').value);$('selection').textContent=chosen?(chosen.kind==='config'?'Playlist utama dipilih otomatis':'Sumber video terpilih'):'Menunggu video diputar…';$('selection-detail').textContent=chosen?'Kualitas terbaik tersedia akan dipilih di aplikasi.':'Putar film setelah iklan, lalu klik Perbarui daftar.';$('send').disabled=!chosen;}
-function label(item){const u=new URL(item.url);return `${item.kind==='config'?'★ Config':item.kind} · ${u.pathname.split('/').pop()} · ${u.hostname}`;}
-async function refresh(){
-  [tab]=await chrome.tabs.query({active:true,currentWindow:true});
-  items=((await chrome.storage.session.get('tab:'+tab.id))['tab:'+tab.id]||[]).filter(x=>Date.now()-x.time<3600000);
-  items.sort((a,b)=>rank(b)-rank(a)||b.time-a.time);
-  const selected=$('media').value,sub=$('subtitle').value;
-  $('media').replaceChildren(new Option('Pilih playlist film…',''));
-  $('subtitle').replaceChildren(new Option('Tanpa subtitle tambahan',''));
-  for(const item of items){const option=new Option(label(item),item.url);$(item.kind==='subtitle'?'subtitle':'media').append(option);}
-  const best=items.find(x=>x.kind!=='subtitle');
-  $('media').value=manualMedia&&items.some(x=>x.url===selected)?selected:(best?.url||'');const source=items.find(x=>x.url===$('media').value);
-  const group=source?new URL(source.url).pathname.match(/^\/v\/[^/]+\/[^/]+\//)?.[0]:null;
-  const candidates=items.filter(x=>x.kind==='subtitle'&&group&&new URL(x.url).origin===new URL(source.url).origin&&new URL(x.url).pathname.startsWith(group));
-  candidates.sort((a,b)=>Number(/\/i18n\/id\//.test(b.url))-Number(/\/i18n\/id\//.test(a.url))||b.time-a.time);
-  $('subtitle').value=manualSubtitle&&(sub===''||candidates.some(x=>x.url===sub))?sub:(candidates[0]?.url||'');showSelection();
-  $('status').textContent=items.length?'Sumber dipilih otomatis. Anda bisa langsung mengirim ke Downloader.':'Belum ada sumber. Putar film, aktifkan subtitle, lalu perbarui daftar.';
-}
-async function send(subOnly){
-  try{
-    const settings=await chrome.storage.local.get('app');if(!settings.app)throw Error('Atur alamat aplikasi di Pengaturan ekstensi terlebih dahulu.');const app=new URL(settings.app);
-    if(!['http:','https:'].includes(app.protocol)||!app.hostname||app.username||app.password)throw Error('Gunakan alamat aplikasi yang valid: http://127.0.0.1:PORT atau https://dw.pmlab.id');
-    const selected=items.find(x=>x.url===$(subOnly?'subtitle':'media').value);
-    if(!selected)throw Error(subOnly?'Pilih subtitle terlebih dahulu.':'Pilih playlist terlebih dahulu.');
-    await chrome.storage.local.set({app:app.origin});
-    const payload={url:selected.url,mode:subOnly?'subtitle':'direct',name:$('name').value||'Video',referer:tab.url?.startsWith('https://')?tab.url:selected.referer,subtitle_url:subOnly?'':$('subtitle').value};
-    // Transfer only after the user clicks. The app presents a form for review.
-    await chrome.tabs.create({url:app.origin+'/#import='+encodeURIComponent(JSON.stringify(payload))});
-    $('status').textContent='Tautan dikirim. Pilih kualitas/folder di aplikasi lalu klik Mulai unduh.';
-  }catch(e){$('status').textContent=e.message;}
-}
-$('media').onchange=()=>{manualMedia=true;manualSubtitle=false;refresh().catch(e=>$('status').textContent=e.message);};
-$('subtitle').onchange=()=>{manualSubtitle=true;};
-$('send').onclick=()=>send(false);$('send-sub').onclick=()=>send(true);
-$('refresh').onclick=()=>refresh().catch(e=>$('status').textContent=e.message);
-$('clear').onclick=async()=>{await chrome.storage.session.remove('tab:'+tab.id);await chrome.action.setBadgeText({tabId:tab.id,text:''});await refresh();};
-(async()=>{await refresh();$('name').value=(tab.title||'Video').replace(/\s*[|/]\s*[^|/]+$/i,'').slice(0,100);})().catch(e=>$('status').textContent=e.message);
+const $ = id => document.getElementById(id);
+let tab, items = [];
 
-$('settings').onclick=()=>chrome.runtime.openOptionsPage();
-$('copy-link').onclick=async()=>{const item=items.find(x=>x.url===$('media').value);if(!item){$('status').textContent='Playlist belum ditemukan.';return;}try{await navigator.clipboard.writeText(item.url);$('status').textContent='Link playlist lengkap tersalin.';}catch{const box=$('copy-link-fallback');box.hidden=false;box.value=item.url;box.focus();box.select();$('status').textContent='Tekan Command+C atau Ctrl+C untuk menyalin.'}};
+const SOCIAL_DOMAINS = ['youtube.com', 'instagram.com', 'tiktok.com', 'twitter.com', 'x.com'];
 
-if($('sync-cookies')){
-  $('sync-cookies').onclick=async()=>{
-    const btn=$('sync-cookies');
-    btn.disabled=true;
-    try{
-      $('status').textContent='Mengambil cookie media sosial dari browser…';
-      const settings=await chrome.storage.local.get(['app','token']);
-      if(!settings.app)throw Error('Atur alamat aplikasi di Pengaturan ekstensi terlebih dahulu.');
-      const appUrl=new URL(settings.app);
-      const domains=['.instagram.com','instagram.com','.youtube.com','youtube.com','.tiktok.com','tiktok.com'];
-      let allCookies=[];
-      for(const d of domains){
-        try{
-          const c=await chrome.cookies.getAll({domain:d});
-          allCookies=allCookies.concat(c);
-        }catch(e){}
-      }
-      if(allCookies.length===0){
-        throw Error('Tidak ada cookie Instagram/YouTube/TikTok yang ditemukan. Pastikan Anda sudah login ke situs tersebut di Chrome.');
-      }
-      let netscape="# Netscape HTTP Cookie File\n# Generated by OmniFetch Companion\n";
-      const seen=new Set();
-      for(const c of allCookies){
-        const key=`${c.domain}|${c.name}|${c.path}`;
-        if(seen.has(key))continue;
-        seen.add(key);
-        const isDomain=c.domain.startsWith('.')?'TRUE':'FALSE';
-        const isSecure=c.secure?'TRUE':'FALSE';
-        const expiry=c.expirationDate?Math.floor(c.expirationDate):0;
-        netscape+=`${c.domain}\t${isDomain}\t${c.path}\t${isSecure}\t${expiry}\t${c.name}\t${c.value}\n`;
-      }
-      const res=await fetch(appUrl.origin+'/upload-cookies',{
-        method:'POST',
-        headers:{
-          'Content-Type':'text/plain',
-          'X-App-Token':settings.token||''
-        },
-        body:netscape
-      });
-      const data=await res.json();
-      if(!res.ok)throw Error(data.error||'Gagal menyimpan cookie ke server.');
-      $('status').textContent='✅ '+data.message;
-    }catch(err){
-      $('status').textContent='❌ Gagal sinkron cookie: '+err.message;
-    }finally{
-      btn.disabled=false;
-    }
+async function getApp() {
+  const d = await chrome.storage.local.get(['app','token']);
+  return { app: d.app || null, token: d.token || '' };
+}
+
+// Format Label
+function label(item) {
+  const u = new URL(item.url);
+  return `${item.kind === 'config' ? '★ Config' : item.kind} · ${u.pathname.split('/').pop()} · ${u.hostname}`;
+}
+
+// Refresh Sniffer
+async function refresh() {
+  const stored = (await chrome.storage.session.get('tab:'+tab.id))['tab:'+tab.id] || [];
+  items = stored.filter(x => Date.now() - x.time < 3600000);
+  items.sort((a,b) => (b.kind==='config'?3:b.kind==='playlist'?2:1) - (a.kind==='config'?3:a.kind==='playlist'?2:1) || b.time - a.time);
+  
+  $('media').replaceChildren(new Option('Pilih playlist film…', ''));
+  $('subtitle').replaceChildren(new Option('Tanpa subtitle tambahan', ''));
+  
+  for (const item of items) {
+    const opt = new Option(label(item), item.url);
+    $(item.kind === 'subtitle' ? 'subtitle' : 'media').append(opt);
+  }
+  
+  const best = items.find(x => x.kind !== 'subtitle');
+  if (best) $('media').value = best.url;
+  
+  const source = items.find(x => x.url === $('media').value);
+  if (source) {
+    const group = new URL(source.url).pathname.match(/^\/v\/[^/]+\/[^/]+\//)?.[0];
+    const subs = items.filter(x => x.kind === 'subtitle' && group && new URL(x.url).origin === new URL(source.url).origin && new URL(x.url).pathname.startsWith(group));
+    subs.sort((a,b) => Number(/\/i18n\/id\//.test(b.url)) - Number(/\/i18n\/id\//.test(a.url)) || b.time - a.time);
+    if (subs[0]) $('subtitle').value = subs[0].url;
+  }
+  
+  $('status').textContent = items.length ? '🎬 Sumber berhasil ditangkap.' : 'Belum ada sumber tertangkap. Putar video dulu.';
+  $('send').disabled = !best;
+}
+
+// Send from Sniffer
+async function sendSniffer(subOnly) {
+  try {
+    const { app } = await getApp();
+    if (!app) throw Error('Silakan atur alamat Dashboard OmniFetch terlebih dahulu.');
+    const selected = items.find(x => x.url === $(subOnly ? 'subtitle' : 'media').value);
+    if (!selected) throw Error(subOnly ? 'Pilih subtitle dulu.' : 'Pilih playlist dulu.');
+    
+    const payload = {
+      url: selected.url,
+      mode: subOnly ? 'subtitle' : 'direct',
+      name: $('name').value || tab.title.slice(0,100),
+      referer: tab.url,
+      subtitle_url: subOnly ? '' : $('subtitle').value
+    };
+    
+    await chrome.tabs.create({ url: new URL(app).origin + '/#import=' + encodeURIComponent(JSON.stringify(payload)) });
+    $('status').textContent = '✅ Dikirim ke Dashboard.';
+  } catch(e) {
+    $('status').textContent = '❌ ' + e.message;
+  }
+}
+
+// Initializer
+(async () => {
+  [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+  
+  // Decide which UI to show
+  const host = new URL(tab.url).hostname;
+  const isSocial = SOCIAL_DOMAINS.some(d => host.endsWith(d));
+  
+  if (isSocial) {
+    $('direct-dl-section').style.display = 'block';
+    $('sniffer-section').style.display = 'none';
+    $('current-url').textContent = tab.url.length > 50 ? tab.url.substring(0, 47) + '...' : tab.url;
+  } else {
+    $('direct-dl-section').style.display = 'none';
+    $('sniffer-section').style.display = 'block';
+    refresh();
+  }
+  
+  $('open-app').onclick = async () => {
+    const { app } = await getApp();
+    if (app) chrome.tabs.create({ url: new URL(app).origin });
+    else chrome.runtime.openOptionsPage();
   };
-}
+})();
 
+// Direct DL Click
+$('btn-dl-direct').onclick = async () => {
+  try {
+    const { app, token } = await getApp();
+    if (!app) throw Error('Atur Dashboard OmniFetch dulu.');
+    
+    const btn = $('btn-dl-direct');
+    btn.innerHTML = '⏳ Mengirim...';
+    btn.disabled = true;
+    
+    const payload = { urls: tab.url, mode: 'ytdlp', media_type: 'video', resolution: 'best' };
+    const res = await fetch(new URL(app).origin + '/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-App-Token': token },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    if (data.ok) {
+      btn.innerHTML = '✅ Sukses Terkirim';
+      btn.style.background = '#15803d';
+      $('status').textContent = 'Video sedang diunduh di VPS!';
+    } else {
+      throw Error(data.error || 'Gagal');
+    }
+  } catch(e) {
+    $('status').textContent = '❌ ' + e.message;
+    $('btn-dl-direct').innerHTML = '🚀 Coba Lagi';
+    $('btn-dl-direct').disabled = false;
+  }
+};
+
+// Listeners for Sniffer
+$('refresh').onclick = refresh;
+$('clear').onclick = async () => {
+  await chrome.storage.session.remove('tab:'+tab.id);
+  await chrome.action.setBadgeText({tabId:tab.id, text:''});
+  refresh();
+};
+$('send').onclick = () => sendSniffer(false);
+$('send-sub').onclick = () => sendSniffer(true);
+
+// Settings
+$('settings').onclick = () => chrome.runtime.openOptionsPage();
+
+// Cookie Sync
+$('sync-cookies').onclick = async () => {
+  const btn = $('sync-cookies');
+  btn.disabled = true;
+  try {
+    $('status').textContent = 'Mengambil cookie media sosial...';
+    const { app, token } = await getApp();
+    if (!app) throw Error('Atur Dashboard OmniFetch dulu.');
+    
+    let allCookies = [];
+    for (const d of ['.instagram.com','instagram.com','.youtube.com','youtube.com','.tiktok.com','tiktok.com']) {
+      try { allCookies = allCookies.concat(await chrome.cookies.getAll({domain: d})); } catch(e) {}
+    }
+    
+    if (allCookies.length === 0) throw Error('Tidak ada cookie ditemukan.');
+    
+    let netscape = "# Netscape HTTP Cookie File\n# Generated by OmniFetch Companion\n";
+    const seen = new Set();
+    for (const c of allCookies) {
+      const key = `${c.domain}|${c.name}|${c.path}`;
+      if (seen.has(key)) continue; seen.add(key);
+      netscape += `${c.domain}\t${c.domain.startsWith('.')?'TRUE':'FALSE'}\t${c.path}\t${c.secure?'TRUE':'FALSE'}\t${c.expirationDate?Math.floor(c.expirationDate):0}\t${c.name}\t${c.value}\n`;
+    }
+    
+    const res = await fetch(new URL(app).origin + '/upload-cookies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', 'X-App-Token': token },
+      body: netscape
+    });
+    const data = await res.json();
+    if (!res.ok) throw Error(data.error || 'Gagal server');
+    
+    $('status').textContent = '✅ Sinkronisasi sukses!';
+  } catch(e) {
+    $('status').textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
