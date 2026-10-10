@@ -192,10 +192,10 @@ body[data-running="true"] .laser{display:block}
 <span class="brand-label">MEDIA SUITE</span>
 </a>
 <nav class="nav-links" aria-label="Navigasi utama">
-<button type="button" class="nav-link active" id="nav-stream"><svg><use href="#i-film"/></svg>Streaming Film</button>
-<button type="button" class="nav-link" id="nav-universal"><svg><use href="#i-globe"/></svg>Universal YT-DLP</button>
+<button type="button" class="nav-link" id="nav-stream"><svg><use href="#i-film"/></svg>Streaming Film</button>
+<button type="button" class="nav-link active" id="nav-universal"><svg><use href="#i-globe"/></svg>Downloader Universal</button>
 <button type="button" class="cookie-badge" id="btn-cookie-modal" title="Klik untuk mengelola cookies media sosial"><span class="cookie-dot" id="cookie-status-dot"></span><span id="cookie-status-text">Cookie Medsos</span></button>
-<a class="nav-link" href="#guide"><svg><use href="#i-book"/></svg>Panduan</a>
+<button type="button" class="nav-link" id="nav-guide"><svg><use href="#i-book"/></svg>Panduan</button>
 </nav>
 <span class="local"><span class="dot"></span><span id="env-badge">Aktif</span></span>
 </header>
@@ -205,8 +205,8 @@ body[data-running="true"] .laser{display:block}
 <div class="hero-inner">
 <div class="hero-content">
 <div class="hero-pill"><span class="pulse-dot"></span><span>OMNIFETCH 2.0 · ZERO CACHE ENGINE</span></div>
-<h1 id="hero-title">Satu Studio.<br><span class="gradient-text">Unduh Apapun.</span></h1>
-<p id="hero-desc">Solusi media cerdas untuk mengunduh film streaming HLS, Instagram Reels & Carousel foto/video, YouTube 4K, hingga ribuan media sosial secara instan.</p>
+<h1 id="hero-title">Universal Medsos.<br><span class="gradient-text">Instagram, YouTube & ZIP.</span></h1>
+<p id="hero-desc">Scan otomatis postingan Instagram Reels & Carousel, video YouTube 4K, TikTok, audio MP3, dan ribuan situs medsos dengan zero-cache engine.</p>
 <div class="feature-row">
 <span><svg><use href="#i-check"/></svg>Multi-Format & 4K</span>
 <span><svg><use href="#i-check"/></svg>Auto Carousel .ZIP</span>
@@ -217,26 +217,26 @@ body[data-running="true"] .laser{display:block}
 <div class="hero-switcher">
 <span class="switcher-title">PILIH MODE DOWNLOADING:</span>
 <div class="mode-pills">
-<button type="button" class="mode-pill active" id="hero-nav-stream">
+<button type="button" class="mode-pill" id="hero-nav-stream">
 <svg><use href="#i-film"/></svg>
 <div><strong>Film & HLS Stream</strong><small>Player web & subtitle otomatis</small></div>
 </button>
-<button type="button" class="mode-pill" id="hero-nav-universal">
+<button type="button" class="mode-pill active" id="hero-nav-universal">
 <svg><use href="#i-globe"/></svg>
-<div><strong>Universal Medsos</strong><small>Instagram, YouTube, TikTok & ZIP</small></div>
+<div><strong>Downloader Universal</strong><small>Instagram, YouTube, TikTok & ZIP</small></div>
 </button>
 </div>
 </div>
 </div>
 </section>
 <div class="workspace">
-<section class="card" id="download" aria-labelledby="download-title"><div class="card-head"><div class="section-title"><svg><use href="#i-download"/></svg><h2 id="download-title">Unduhan baru</h2></div><span class="step">01 — TEMPEL TAUTAN</span></div><div class="card-body"><form id="form"><div class="tabs" role="group" aria-label="Jenis unduhan"><button type="button" class="tab active" id="video-tab" aria-pressed="true">Video & subtitle</button><button type="button" class="tab" id="subtitle-tab" aria-pressed="false">Subtitle saja</button></div>
+<section class="card" id="download" aria-labelledby="download-title" hidden><div class="card-head"><div class="section-title"><svg><use href="#i-download"/></svg><h2 id="download-title">Unduhan baru</h2></div><span class="step">01 — TEMPEL TAUTAN</span></div><div class="card-body"><form id="form"><div class="tabs" role="group" aria-label="Jenis unduhan"><button type="button" class="tab active" id="video-tab" aria-pressed="true">Video & subtitle</button><button type="button" class="tab" id="subtitle-tab" aria-pressed="false">Subtitle saja</button></div>
 <label for="url" class="first-label">Alamat halaman, video, atau subtitle</label><textarea id="url" placeholder="Tempel alamat halaman film atau tautan video di sini…" required spellcheck="false"></textarea><p class="hint" id="url-hint">Tidak perlu Inspect Element. Chrome akan terbuka untuk mencari video.</p>
 <div class="row"><div><label for="name">Nama file</label><input id="name" value="Video" maxlength="100"></div><div><label for="quality">Kualitas video</label><select id="quality"><option value="best">Terbaik tersedia</option><option value="720">Maksimal 720p</option><option value="480">Maksimal 480p</option></select></div></div>
 <div class="subtitle-area" id="subtitle-options"><label class="check"><input type="checkbox" id="subtitles" checked>Unduh juga subtitle yang terdeteksi</label><label for="subtitle_url">Tautan subtitle tambahan <span class="optional">(opsional)</span></label><input id="subtitle_url" placeholder="https://…/subtitle.vtt" spellcheck="false"><p class="hint">Aktifkan subtitle di pemutar agar terdeteksi. VTT otomatis diubah ke SRT (UTF-8) dan disimpan di folder video.</p></div>
 <details><summary>Pengaturan tambahan</summary><div id="folder-section" style="display:none"><label for="folder">Folder utama penyimpanan</label><div class="folder"><input id="folder" value="~/Downloads"><button class="button" type="button" id="choose"><svg><use href="#i-folder"/></svg>Pilih folder</button></div><p class="hint">Folder sesuai nama film dibuat otomatis. Video dan subtitle utama memakai nama yang sama: Nama Film/Nama Film.mp4 dan Nama Film.srt.</p></div><label for="mode">Jenis tautan</label><select id="mode"><option value="auto">Deteksi otomatis</option><option value="page">Halaman film (cari melalui Chrome)</option><option value="direct">Tautan video / playlist langsung</option><option value="subtitle">Subtitle saja (VTT/SRT)</option></select><label for="referer">Alamat halaman asal <span class="optional">(opsional)</span></label><input id="referer" placeholder="Alamat situs tempat video diputar" spellcheck="false"><label class="check"><input type="checkbox" id="forward" checked>Teruskan token akses ke playlist dan potongan video</label></details>
 <div class="actions"><button class="button primary" id="start"><svg><use href="#i-download"/></svg><span id="start-label">Mulai unduh</span></button><button class="button" type="button" id="stop" disabled>■ HENTIKAN</button></div><div id="error" role="alert"></div></form><div id="tools" class="tools"></div></div></section>
-<section class="card" id="card-universal" aria-labelledby="universal-title" hidden><div class="card-head"><div class="section-title"><svg><use href="#i-globe"/></svg><h2 id="universal-title">Universal Downloader (Instagram, YouTube, Medsos & Carousel)</h2></div><span class="step">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
+<section class="card" id="card-universal" aria-labelledby="universal-title"><div class="card-head"><div class="section-title"><svg><use href="#i-globe"/></svg><h2 id="universal-title">Downloader Universal (Instagram, YouTube, Medsos & Carousel)</h2></div><span class="step">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
 <span class="scan-step-badge">LANGKAH 1: TEMPEL LINK & SCAN</span>
 <label for="u-urls" class="first-label">Alamat URL Video, Instagram Post / Carousel, YouTube, atau Medsos</label>
 <textarea id="u-urls" placeholder="Tempel tautan di sini:&#10;https://www.instagram.com/p/... (Post / Carousel)&#10;https://www.instagram.com/reel/... (Reels)&#10;https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@..." required spellcheck="false" style="height:86px"></textarea>
@@ -314,9 +314,9 @@ body[data-running="true"] .laser{display:block}
 <div id="u-error" role="alert"></div>
 </form></div></section>
 <div class="aside"><section class="card" aria-labelledby="activity-title"><div class="card-head"><h2 id="activity-title">Aktivitas unduhan</h2><span class="status-badge" id="activity-badge">SIAP</span></div><div class="card-body"><div class="status-visual" aria-hidden="true"><svg><use href="#i-download"/></svg></div><div id="status" role="status" aria-live="polite">Siap mengunduh</div><div class="progress-label"><span>PROGRES UNDUHAN</span><strong id="percent-label">0%</strong></div><div class="track" role="progressbar" aria-label="Progres unduhan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="bar" id="bar"></div></div><p class="hint">Progres dapat kembali ke awal saat beralih dari video ke audio.</p><div id="transfer-warning" role="status" hidden style="margin-top:16px;padding:13px;border:1px solid #946328;border-radius:9px;background:#302211;color:#ffce87;font-size:12px;line-height:1.7"></div><div id="completed-box" hidden class="completed-box"><div class="completed-head"><div class="completed-title"><svg style="width:18px;height:18px"><use href="#i-check"/></svg><span id="completed-box-title">File siap diunduh ke perangkat Anda</span></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><label style="font-size:11px;color:#86efac;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="auto-save" checked> Otomatis simpan ke PC</label><button type="button" class="button" id="btn-clear-server-files" style="padding:4px 8px;font-size:10px;background:#3f1414;border-color:#7f1d1d;color:#fca5a5" title="Hapus file di server langsung tanpa menunggu 2 jam">🧹 Bersihkan Server</button></div></div><p class="completed-hint">Klik tombol di bawah untuk menyimpan langsung ke HP/Laptop Anda (otomatis dihapus dari server dalam 2 jam).</p><div id="completed-files"></div></div><div class="live-meta"><div><small>KECEPATAN</small><strong id="speed">—</strong></div><div><small>ESTIMASI SISA</small><strong id="eta">—</strong></div></div><p id="updated">Menunggu status…</p><button class="button" type="button" id="stop-activity" disabled>■ HENTIKAN UNDUHAN</button><div class="copy-row"><button class="button" type="button" id="copy-status">Salin status & log</button><p id="copy-feedback" role="status"></p><textarea id="copy-fallback" aria-label="Status dan log untuk disalin" readonly hidden></textarea></div><details id="details"><summary>Lihat detail proses</summary><pre id="logs">Belum ada proses.</pre></details></div></section>
-<section class="card guide" id="guide" aria-labelledby="guide-title"><h2 id="guide-title">Tiga langkah. Siap ditonton.</h2><ol><li><div>Tempel tautan<p>Gunakan alamat halaman film, video, atau subtitle.</p></div></li><li><div>Atur sesuai keinginan<p>Pilih kualitas, nama file, dan folder tujuan.</p></div></li><li><div>Unduh & simpan<p>Klik Play atau selesaikan verifikasi di Chrome jika diminta. Biarkan aplikasi tetap terbuka.</p></div></li></ol><div class="formats" aria-label="Format yang didukung"><span>MP4</span><span>MKV</span><span>MP3</span><span>FLAC</span><span>WEBM</span><span>YOUTUBE</span><span>INSTAGRAM</span><span>TIKTOK</span><span>HLS</span><span>SRT</span></div></section></div>
+<section class="card guide" id="guide" aria-labelledby="guide-title" hidden><h2 id="guide-title">Tiga langkah. Siap ditonton.</h2><ol><li><div>Tempel tautan<p>Gunakan alamat halaman film, video, atau subtitle.</p></div></li><li><div>Atur sesuai keinginan<p>Pilih kualitas, nama file, dan folder tujuan.</p></div></li><li><div>Unduh & simpan<p>Klik Play atau selesaikan verifikasi di Chrome jika diminta. Biarkan aplikasi tetap terbuka.</p></div></li></ol><div class="formats" aria-label="Format yang didukung"><span>MP4</span><span>MKV</span><span>MP3</span><span>FLAC</span><span>WEBM</span><span>YOUTUBE</span><span>INSTAGRAM</span><span>TIKTOK</span><span>HLS</span><span>SRT</span></div></section></div>
 </div>
-<section class="card" id="extension-guide" style="margin-top:24px"><div class="card-head"><h2>Ekstensi Chrome & panduan lengkap</h2><a class="button primary" href="/extension.zip" download>↓ Unduh ekstensi Chrome</a></div><div class="card-body">
+<section class="card" id="extension-guide" hidden><div class="card-head"><h2>Ekstensi Chrome & panduan lengkap</h2><a class="button primary" href="/extension.zip" download>↓ Unduh ekstensi Chrome</a></div><div class="card-body">
 <p class="hint">Gunakan Chrome biasa untuk memutar film, melewati iklan, dan menyelesaikan verifikasi. Ekstensi mendeteksi playlist tanpa Inspect Element.</p>
 <p class="hint"><strong>Pemasangan paling mudah:</strong> melalui Chrome Web Store dengan tombol Add to Chrome. Ekstensi ini belum diterbitkan di Store, sehingga paket ZIP saat ini dipasang sekali melalui Load unpacked. File .crx mandiri bukan pengganti pemasangan Store pada Chrome biasa di Mac/Windows. Setelah terpasang, ekstensi tetap tersedia; tidak perlu Load unpacked setiap kali digunakan.</p><details open><summary>1. Pasang ekstensi pertama kali</summary><ol><li>Klik Unduh ekstensi Chrome di atas.</li><li>Buka folder Downloads dan klik dua kali ZIP untuk mengekstraknya.</li><li>Buka Chrome, ketik <code>chrome://extensions</code> di bilah alamat, lalu Enter.</li><li>Aktifkan <strong>Developer mode / Mode developer</strong> di kanan atas.</li><li>Klik <strong>Load unpacked / Muat yang belum dipaketkan</strong>.</li><li>Pilih folder <strong>chrome-extension</strong> hasil ekstrak yang berisi manifest.json, bukan file ZIP atau folder induknya.</li><li>Klik ikon puzzle di toolbar Chrome, lalu pin OmniFetch Companion. Ikonnya merah–hitam dengan panah download.</li><li>Muat ulang tab film yang sudah terbuka agar panel ekstensi aktif.</li></ol></details>
 <details><summary>2. Hubungkan ekstensi ke aplikasi</summary><ol><li>Jalankan Mulai.command dari folder aplikasi. Biarkan Terminal terbuka.</li><li>Salin alamat aplikasi di bilah browser ini: <strong id="current-app-address"></strong>.</li><li>Klik ikon ekstensi → <strong>Pengaturan ekstensi</strong>, atau gunakan tombol pengaturan pada panel di halaman film.</li><li>Tempel alamat tersebut lalu klik <strong>Simpan pengaturan</strong>.</li><li>Jika aplikasi dijalankan ulang dengan port berbeda, perbarui alamat pengaturan. Copy link JSON tidak membutuhkan alamat aplikasi.</li></ol></details>
@@ -588,17 +588,29 @@ $('completed-files').innerHTML='';
 
 function switchSubmenu(target){
 const isUniversal=target==='universal';
-if($('nav-stream'))$('nav-stream').classList.toggle('active',!isUniversal);
+const isGuide=target==='guide';
+const isStream=target==='stream';
+
+if($('nav-stream'))$('nav-stream').classList.toggle('active',isStream);
 if($('nav-universal'))$('nav-universal').classList.toggle('active',isUniversal);
-if($('hero-nav-stream'))$('hero-nav-stream').classList.toggle('active',!isUniversal);
+if($('nav-guide'))$('nav-guide').classList.toggle('active',isGuide);
+
+if($('hero-nav-stream'))$('hero-nav-stream').classList.toggle('active',isStream);
 if($('hero-nav-universal'))$('hero-nav-universal').classList.toggle('active',isUniversal);
-$('download').hidden=isUniversal;
-$('card-universal').hidden=!isUniversal;
+
+if($('download'))$('download').hidden=!isStream;
+if($('card-universal'))$('card-universal').hidden=!isUniversal;
+if($('extension-guide'))$('extension-guide').hidden=!isGuide;
+if($('guide'))$('guide').hidden=!isGuide;
+
+if(!isGuide){
 if($('hero-title'))$('hero-title').innerHTML=isUniversal?'Universal Medsos.<br><span class="gradient-text">Instagram, YouTube & ZIP.</span>':'Satu Studio.<br><span class="gradient-text">Unduh Apapun.</span>';
 if($('hero-desc'))$('hero-desc').textContent=isUniversal?'Scan otomatis postingan Instagram Reels & Carousel, video YouTube 4K, TikTok, audio MP3, dan ribuan situs medsos dengan zero-cache engine.':'Solusi media cerdas untuk mengunduh film streaming HLS, Instagram Reels & Carousel foto/video, YouTube 4K, hingga ribuan media sosial secara instan.';
 }
+}
 $('nav-stream').onclick=()=>switchSubmenu('stream');
 $('nav-universal').onclick=()=>switchSubmenu('universal');
+if($('nav-guide'))$('nav-guide').onclick=()=>switchSubmenu('guide');
 if($('hero-nav-stream'))$('hero-nav-stream').onclick=()=>switchSubmenu('stream');
 if($('hero-nav-universal'))$('hero-nav-universal').onclick=()=>switchSubmenu('universal');
 

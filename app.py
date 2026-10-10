@@ -368,7 +368,8 @@ def run_job(data):
                     if COOKIES_PATH:
                         gdl_cmd += ['--cookies', str(COOKIES_PATH)]
                     # Download directly to folder without creating complex subdirs if possible, but gallery-dl does it anyway
-                    gdl_cmd += ['--directory', str(folder), data['url']]
+                    urls_to_dl = data.get('urls') or [data.get('url', '')]
+                    gdl_cmd += ['--directory', str(folder)] + urls_to_dl
                     
                     proc = subprocess.run(gdl_cmd, cwd=folder, capture_output=True, text=True)
                     if proc.returncode == 0:
