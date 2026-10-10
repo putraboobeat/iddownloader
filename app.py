@@ -635,6 +635,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('X-Frame-Options', 'DENY')
             self.end_headers()
             self.wfile.write(body)
+        elif self.path in ('/favicon.ico', '/favicon-192.png', '/favicon-512.png'):
+            fname = self.path.lstrip('/')
+            fpath = Path(__file__).with_name(fname)
+            if not fpath.exists():
+                return self.send({'error': 'Not found'}, 404)
+            mime = 'image/x-icon' if fname.endswith('.ico') else 'image/png'
+            body = fpath.read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', mime)
+            self.send_header('Cache-Control', 'public, max-age=86400')
+            self.end_headers()
+            self.wfile.write(body)
         elif self.path == '/extension.zip':
             archive = Path(__file__).with_name('OmniFetch-Extension.zip')
             if not archive.exists():
