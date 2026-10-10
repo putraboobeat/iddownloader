@@ -89,7 +89,7 @@ Jika ada perubahan pada file di dalam folder `chrome-extension/`:
 
 1. Buka browser Chrome di komputer Anda.
 2. Ketik di bilah alamat: `chrome://extensions` lalu tekan **Enter**.
-3. Cari ekstensi **VIDEO Downloader Companion**.
+3. Cari ekstensi **OmniFetch Companion**.
 4. Klik tombol **Reload / Muat Ulang (ikon panah melingkar ⟳)**.
 5. Ekstensi sudah otomatis menggunakan kode terbaru.
 

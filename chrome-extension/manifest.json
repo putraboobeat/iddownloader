@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Video Downloader Companion",
+  "name": "OmniFetch Companion",
   "version": "1.5.0",
-  "description": "Deteksi playlist video dan subtitle, lalu kirim ke aplikasi lokal.",
+  "description": "Deteksi playlist video film, subtitle, dan sinkronisasi cookie media sosial ke OmniFetch.",
   "permissions": [
     "webRequest",
     "storage",
@@ -22,7 +22,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Video Downloader",
+    "default_title": "OmniFetch Companion",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

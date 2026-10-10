@@ -1,11 +1,11 @@
-# Video Downloader
+# OmniFetch — Universal Media Studio
 
-Aplikasi lokal untuk mengunduh video dan subtitle, dengan ekstensi pendamping Chrome. Antarmuka berbahasa Indonesia bertema merah–hitam.
+Studio pengunduh media serbaguna dengan antarmuka modern, bersih, dan cepat. Mendukung unduhan streaming film HLS, Instagram Reels & Carousel (otomatis pack .ZIP), YouTube 4K, audio MP3/FLAC, serta ribuan situs media sosial dengan integrasi yt-dlp & zero-cache engine. Dilengkapi ekstensi Chrome pendamping (OmniFetch Companion).
 
 ## Kebutuhan
 
-- macOS, Python 3.10+, Google Chrome.
-- FFmpeg tersedia pada PATH (misalnya melalui Homebrew).
+- macOS / Linux (VPS) / Windows, Python 3.10+.
+- FFmpeg & yt-dlp tersedia pada PATH.
 - Paket Python pada `requirements.txt`: Playwright dan yt-dlp.
 
 ## Menjalankan

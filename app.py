@@ -593,13 +593,15 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == '/extension.zip':
-            archive = Path(__file__).with_name('Video-Downloader-Extension.zip')
+            archive = Path(__file__).with_name('OmniFetch-Extension.zip')
+            if not archive.exists():
+                archive = Path(__file__).with_name('Video-Downloader-Extension.zip')
             if not archive.exists():
                 return self.send({'error': 'Paket ekstensi belum tersedia.'}, 404)
             body = archive.read_bytes()
             self.send_response(200)
             self.send_header('Content-Type', 'application/zip')
-            self.send_header('Content-Disposition', 'attachment; filename="Video-Downloader-Extension.zip"')
+            self.send_header('Content-Disposition', 'attachment; filename="OmniFetch-Extension.zip"')
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -985,7 +987,7 @@ def main():
     port = args.port or (6666 if args.vps else 0)
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     url = 'http://127.0.0.1:' + str(server.server_port)
-    print('Video Downloader: ' + url, flush=True)
+    print('OmniFetch: ' + url, flush=True)
     if args.vps:
         print(f'Mode VPS aktif (Port: {server.server_port}). File unduhan akan dihapus otomatis dalam 2 jam.', flush=True)
     print('Biarkan Terminal terbuka. Tekan Control+C untuk menutup program.', flush=True)
