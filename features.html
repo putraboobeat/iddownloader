@@ -90,6 +90,30 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
     line-height: 1.6;
 }
 
+.feature-card.highlight {
+    border-color: rgba(255, 38, 62, 0.4);
+    background: linear-gradient(145deg, rgba(35, 20, 25, 0.6), rgba(20, 15, 20, 0.5));
+    box-shadow: 0 20px 60px rgba(255, 38, 62, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.feature-card.highlight:hover {
+    border-color: rgba(255, 38, 62, 0.8);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 20px 60px rgba(255, 38, 62, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.badge-unggulan {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #fff;
+    background: linear-gradient(135deg, #ff263e, #ff7a8e);
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    vertical-align: middle;
+    box-shadow: 0 2px 10px rgba(255, 38, 62, 0.4);
+}
+
 /* Glow Orb (God-Tier Animated Aurora) */
 .glow-orb { position: fixed; width: 120vw; height: 120vh; background: radial-gradient(circle at 50% 50%, rgba(255,25,60,0.08) 0%, rgba(100,10,30,0.03) 40%, rgba(0,0,0,0) 70%), radial-gradient(circle at 80% 20%, rgba(30,10,80,0.08) 0%, rgba(0,0,0,0) 50%); top: -10vh; left: -10vw; pointer-events: none; z-index: 0; animation: god-aurora 15s ease-in-out infinite alternate; filter: blur(40px); }
 @keyframes god-aurora { 0% { transform: scale(1) translate(0, 0); } 50% { transform: scale(1.05) translate(3%, 4%); } 100% { transform: scale(1) translate(-2%, -2%); } }
@@ -137,28 +161,52 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </section>
 
 <section class="features-grid">
-    <div class="feature-card">
+    <div class="feature-card highlight">
         <div class="feature-icon"><svg><use href="#i-video"/></svg></div>
-        <h3>Dukungan Video 4K & 8K Ultra HD</h3>
+        <h3>Dukungan Video 4K & 8K Ultra HD <span class="badge-unggulan">UNGGULAN</span></h3>
         <p>Unduh dari YouTube, Instagram, X (Twitter), dan Facebook dengan kualitas tertinggi yang tersedia. Algoritma kami secara otomatis menggabungkan video dan audio ke dalam satu file .mp4 utuh.</p>
     </div>
 
-    <div class="feature-card">
+    <div class="feature-card highlight">
         <div class="feature-icon"><svg><use href="#i-zip"/></svg></div>
-        <h3>Instagram Carousel ke .ZIP</h3>
+        <h3>Instagram Carousel ke .ZIP <span class="badge-unggulan">UNGGULAN</span></h3>
         <p>Satu-satunya alat yang bisa membaca *postingan* Carousel Instagram (berisi foto dan video sekaligus) lalu mengekstrak seluruh kepingannya dan membungkusnya otomatis menjadi 1 file .ZIP yang rapi.</p>
     </div>
 
-    <div class="feature-card">
+    <div class="feature-card highlight">
         <div class="feature-icon"><svg><use href="#i-cpu"/></svg></div>
-        <h3>Multi-Threaded Turbo Engine</h3>
+        <h3>Multi-Threaded Turbo Engine <span class="badge-unggulan">UNGGULAN</span></h3>
         <p>File video dipecah menjadi beberapa potong (*fragments*) secara _real-time_ dan diunduh bersamaan. Kecepatan unduh Anda bisa melesat hingga 8x lipat dari *downloader* biasa.</p>
     </div>
 
-    <div class="feature-card">
+    <div class="feature-card highlight">
         <div class="feature-icon"><svg><use href="#i-globe"/></svg></div>
-        <h3>Streaming HLS (m3u8) Bypass</h3>
+        <h3>Streaming HLS (m3u8) Bypass <span class="badge-unggulan">UNGGULAN</span></h3>
         <p>Hampir semua situs film dan serial menggunakan format terenkripsi _HLS_ atau _.m3u8_ yang susah diunduh. OmniFetch merangkai potongan *streaming* tersebut dan mengubahnya menjadi file MP4.</p>
+    </div>
+
+    <div class="feature-card highlight">
+        <div class="feature-icon"><svg><use href="#i-shield"/></svg></div>
+        <h3>Sistem Injeksi Kuki Mandiri <span class="badge-unggulan">UNGGULAN</span></h3>
+        <p>Dilengkapi panel `/upload-cookies` rahasia! Anda bisa men-transfer sesi login *browser* ke server VPS untuk membongkar dan mengunduh video-video Private (Grup Facebook/Instagram) tanpa hambatan.</p>
+    </div>
+
+    <div class="feature-card highlight">
+        <div class="feature-icon"><svg><use href="#i-zap"/></svg></div>
+        <h3>Ghost DOM Injection (Via Ekstensi) <span class="badge-unggulan">UNGGULAN</span></h3>
+        <p>Ekstensi kami menyuntikkan tombol "⬇️ OmniFetch" secara diam-diam di layar web Instagram/YouTube Anda. Sekali klik, link langsung dilempar ke VPS tanpa perlu copy-paste manual.</p>
+    </div>
+
+    <div class="feature-card highlight">
+        <div class="feature-icon"><svg><use href="#i-globe"/></svg></div>
+        <h3>Network Intercept & M3U8 Sniffer <span class="badge-unggulan">UNGGULAN</span></h3>
+        <p>Ekstensi kami mampu mencegat lalu lintas jaringan di latar belakang. Jika mendeteksi file HLS streaming disembunyikan oleh website premium, ia akan menangkapnya untuk Anda.</p>
+    </div>
+
+    <div class="feature-card highlight">
+        <div class="feature-icon"><svg><use href="#i-video"/></svg></div>
+        <h3>Time-Range Video Cutter <span class="badge-unggulan">UNGGULAN</span></h3>
+        <p>Tidak butuh video 2 jam? Gunakan parameter pemotongan waktu (start/end) untuk memerintahkan server hanya mengunduh 10 detik atau 1 menit bagian penting dari video tersebut.</p>
     </div>
 
     <div class="feature-card">
@@ -231,6 +279,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="feature-icon"><svg><use href="#i-zap"/></svg></div>
         <h3>Auto-Embed Album Art</h3>
         <p>Saat mengunduh format audio, gambar *thumbnail* dari video Youtube/Instagram secara otomatis akan ditanam ke dalam file MP3 sebagai Cover Album (ID3 Tags). Sentuhan premium!</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon"><svg><use href="#i-download"/></svg></div>
+        <h3>Klik Kanan Ajaib (Context Menu)</h3>
+        <p>Berkat pendamping ekstensi kami, Anda cukup mengklik-kanan sembarang video di halaman acak untuk seketika melempar URL-nya ke antrean server VPS Anda.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon"><svg><use href="#i-cpu"/></svg></div>
+        <h3>Multi-Session Isolation</h3>
+        <p>Bisa digunakan keroyokan. Berkat sistem X-App-Session, *progress bar* teman Anda tidak akan bentrok atau tertukar dengan *progress bar* unduhan Anda sendiri di website ini.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon"><svg><use href="#i-globe"/></svg></div>
+        <h3>Otonom Retention Sweeper</h3>
+        <p>Sistem dilengkapi robot *Cron Sweeper* gaib. Begitu file berusia lebih dari 7.200 detik (2 jam), sistem akan melenyapkannya dari memori server tanpa sisa. Aman.</p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon"><svg><use href="#i-music"/></svg></div>
+        <h3>Server Health & Disk Monitor</h3>
+        <p>Terdapat *endpoint* monitoring `/disk-info` tersembunyi yang memungkinkan UI memantau dengan tepat berapa gigabyte (GB) sisa kapasitas Hardisk (SSD) VPS secara real-time.</p>
     </div>
 
     <div class="feature-card">
