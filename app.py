@@ -648,15 +648,32 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == '/extension.zip':
-            archive = Path(__file__).with_name('OmniFetch-Extension.zip')
-            if not archive.exists():
-                archive = Path(__file__).with_name('Video-Downloader-Extension.zip')
-            if not archive.exists():
+            import io, zipfile
+            ext_dir = Path(__file__).with_name('chrome-extension')
+            if not ext_dir.is_dir():
                 return self.send({'error': 'Paket ekstensi belum tersedia.'}, 404)
-            body = archive.read_bytes()
+            
+            version = "latest"
+            manifest_path = ext_dir / 'manifest.json'
+            if manifest_path.exists():
+                try:
+                    version = json.loads(manifest_path.read_text()).get('version', 'latest')
+                except Exception:
+                    pass
+
+            mem_zip = io.BytesIO()
+            with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(ext_dir):
+                    for file in files:
+                        if file.startswith('.'): continue
+                        file_path = Path(root) / file
+                        arcname = file_path.relative_to(ext_dir)
+                        zf.write(file_path, arcname)
+            
+            body = mem_zip.getvalue()
             self.send_response(200)
             self.send_header('Content-Type', 'application/zip')
-            self.send_header('Content-Disposition', 'attachment; filename="OmniFetch-Extension.zip"')
+            self.send_header('Content-Disposition', f'attachment; filename="OmniFetch-Extension-v{version}.zip"')
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)
