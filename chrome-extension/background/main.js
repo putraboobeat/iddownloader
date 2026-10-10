@@ -46,13 +46,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     if (message.type === 'GET_CANDIDATES') {
-        if (!sender.tab) {
+        const tabId = sender.tab ? sender.tab.id : message.tabId;
+        if (!tabId) {
             sendResponse({ error: 'No tab context' });
             return;
         }
         enqueue(async () => {
-            const items = await Detector.getCandidates(sender.tab.id);
+            const items = await Detector.getCandidates(tabId);
             sendResponse({ items });
+        });
+        return true;
+    }
+    
+    if (message.type === 'ADD_CANDIDATES') {
+        const tabId = sender.tab ? sender.tab.id : message.tabId;
+        if (!tabId || !message.items) return;
+        enqueue(async () => {
+            for (const item of message.items) {
+                // Ensure kind classification and push
+                await Detector.addCandidate(tabId, item.url, '', '', item.sourceType);
+            }
+            sendResponse({ ok: true });
+        });
+        return true;
+    }
+    
+    if (message.type === 'CLEAR_CANDIDATES') {
+        const tabId = sender.tab ? sender.tab.id : message.tabId;
+        if (tabId) {
+            enqueue(async () => {
+                await Detector.clear(tabId);
+                sendResponse({ ok: true });
+            });
+            return true;
+        }
+    }
+    
+    if (message.type === 'SYNC_COOKIES') {
+        enqueue(async () => {
+            const domains = ['.instagram.com', '.youtube.com', '.tiktok.com', '.twitter.com', '.x.com'];
+            try {
+                await APIClient.syncCookies(domains);
+                sendResponse({ ok: true });
+            } catch (e) {
+                sendResponse({ error: e.message });
+            }
         });
         return true;
     }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OmniFetch Companion",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Asisten pintar untuk mengunduh video dari Instagram, YouTube, TikTok, Twitter, dan ribuan situs lainnya.",
   "permissions": [
     "webRequest",

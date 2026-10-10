@@ -36,7 +36,7 @@ export class Detector {
         const cleanUrl = url.split('#')[0]; 
         
         const kind = this.classify(cleanUrl, mime);
-        if (!kind || kind === 'segment' || kind === 'config') return;
+        if (!kind || kind === 'segment') return;
 
         const key = `tab:${tabId}`;
         const data = await chrome.storage.session.get(key);

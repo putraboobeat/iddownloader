@@ -35,10 +35,33 @@ document.getElementById('save').onclick = async () => {
             if (!granted) throw Error('Izin cookie ditolak pengguna.');
         }
         
+        const grantedHost = await chrome.permissions.request({ origins: [u.origin + '/*'] });
+        if (!grantedHost) throw Error('Izin akses host ditolak pengguna.');
+        
         await chrome.storage.local.set({ app: u.origin, token: tokenVal, auto_cookie_sync: syncVal });
         app.value = u.origin;
         status.textContent = '✅ Pengaturan tersimpan.';
     } catch (e) {
         status.textContent = '❌ ' + e.message;
+    }
+};
+
+document.getElementById('test').onclick = async () => {
+    try {
+        status.textContent = 'Mencoba koneksi...';
+        const val = app.value.trim();
+        if (!val) throw Error('Alamat kosong');
+        const u = new URL(val.startsWith('http') ? val : 'http://' + val);
+        
+        // Ensure permission exists
+        const hasPerm = await chrome.permissions.contains({ origins: [u.origin + '/*'] });
+        if (!hasPerm) throw Error('Izin host belum diberikan. Simpan pengaturan terlebih dahulu.');
+        
+        const res = await fetch(u.origin + '/api/diagnostic');
+        if (!res.ok) throw Error('Status HTTP ' + res.status);
+        const data = await res.json();
+        status.textContent = `✅ Koneksi berhasil! (Versi: ${data.version || '2.0'})`;
+    } catch(e) {
+        status.textContent = '❌ Koneksi gagal: ' + e.message;
     }
 };

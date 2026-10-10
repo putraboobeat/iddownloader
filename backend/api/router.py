@@ -54,7 +54,10 @@ class APIHandler(BaseHTTPRequestHandler):
 
         try:
             body = self.rfile.read(content_length)
-            data = json.loads(body) if body else {}
+            if path == '/api/upload-cookies':
+                data = {}
+            else:
+                data = json.loads(body) if body else {}
         except Exception:
             return self.send_json(400, {'error': 'Invalid JSON data'})
 
@@ -93,6 +96,19 @@ class APIHandler(BaseHTTPRequestHandler):
                 job_manager.remove_job(job.id)
                 deleted += 1
             self.send_json(200, {'status': f'{deleted} jobs cleared'})
+            
+        elif path == '/api/upload-cookies':
+            try:
+                if config.COOKIES_PATH:
+                    cookie_file = Path(config.COOKIES_PATH)
+                    cookie_file.parent.mkdir(parents=True, exist_ok=True)
+                    text_content = body.decode('utf-8')
+                    cookie_file.write_text(text_content, encoding='utf-8')
+                    self.send_json(200, {'ok': True, 'status': 'Cookies tersimpan'})
+                else:
+                    self.send_json(400, {'error': 'Cookie path tidak dikonfigurasi'})
+            except Exception as e:
+                self.send_json(500, {'error': str(e)})
             
         else:
             self.send_json(404, {'error': 'API endpoint not found'})

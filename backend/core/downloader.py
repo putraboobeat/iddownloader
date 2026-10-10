@@ -59,6 +59,8 @@ def build_ytdlp_command(data: dict, folder: Path, cookies_path: str = None) -> l
     if is_instagram:
         cmd += ['--add-header', 'Referer:https://www.instagram.com/']
         cmd += ['--yes-playlist', '--write-thumbnail']
+    elif data.get('referer'):
+        cmd += ['--add-header', f"Referer:{data.get('referer')}"]
         
     # Batch delays
     if len(parsed_urls) > 1 or is_instagram:

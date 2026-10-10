@@ -10,7 +10,11 @@ function label(item) {
 }
 
 async function refresh() {
-    chrome.runtime.sendMessage({ type: 'GET_CANDIDATES' }, (res) => {
+    chrome.runtime.sendMessage({ type: 'GET_CANDIDATES', tabId: tab.id }, (res) => {
+        if (chrome.runtime.lastError) {
+            $('status').textContent = 'Error: ' + chrome.runtime.lastError.message;
+            return;
+        }
         if (!res || res.error) {
             $('status').textContent = 'Error: ' + (res?.error || 'Gagal mengambil data');
             return;
@@ -90,7 +94,40 @@ function sendToBackground(payload, btnElement, successText = '✅ Terkirim', ori
         refresh();
     }
     
-    $('open-app').onclick = () => chrome.runtime.openOptionsPage();
+    $('open-app').onclick = async () => {
+        const s = await chrome.storage.local.get(['app']);
+        if (s.app) chrome.tabs.create({ url: s.app });
+        else chrome.runtime.openOptionsPage();
+    };
+    
+    $('current-version').textContent = chrome.runtime.getManifest().version;
+    
+    $('sync-cookies').onclick = () => {
+        const btn = $('sync-cookies');
+        btn.textContent = 'Syncing...';
+        chrome.runtime.sendMessage({ type: 'SYNC_COOKIES' }, (res) => {
+            btn.textContent = (res && res.ok) ? '✅ Tersinkronisasi' : '❌ Gagal';
+            setTimeout(() => btn.textContent = 'Paksa Sinkronisasi Cookie', 2000);
+        });
+    };
+    
+    $('send-sub').onclick = () => {
+        const subtitleUrl = $('subtitle').value;
+        if (!subtitleUrl) {
+            $('status').textContent = 'Pilih subtitle dulu.';
+            return;
+        }
+        sendToBackground(
+            { urls: subtitleUrl, mode: 'subtitle', media_type: 'video', resolution: 'best' },
+            $('send-sub'), '✅ Terkirim', 'Subtitle Saja'
+        );
+    };
+    
+    $('clear').onclick = () => {
+        chrome.runtime.sendMessage({ type: 'CLEAR_CANDIDATES', tabId: tab.id }, () => {
+            refresh();
+        });
+    };
 })();
 
 $('btn-dl-direct').onclick = () => {
@@ -109,8 +146,23 @@ $('send').onclick = () => {
         $('status').textContent = 'Pilih playlist dulu.';
         return;
     }
+    
+    const subtitleUrl = $('subtitle').value;
+    const payload = { 
+        urls: selected.url, 
+        mode: selected.kind === 'config' ? 'ytdlp' : 'auto', 
+        media_type: 'video', 
+        resolution: 'best',
+        referer: selected.referer || ''
+    };
+    
+    if (subtitleUrl) {
+        payload.subtitle_url = subtitleUrl;
+        payload.embed_subs = true;
+    }
+    
     sendToBackground(
-        { urls: selected.url, mode: 'ytdlp', media_type: 'video', resolution: 'best' },
+        payload,
         $('send'),
         '✅ Terkirim',
         '⬇ Kirim Playlist ke Server'
@@ -158,19 +210,11 @@ $('deep-analysis').onclick = async () => {
         if (results && results[0] && results[0].result) {
             const domCands = results[0].result;
             if (domCands.length > 0) {
-                // Send to background to register them
-                for (const c of domCands) {
-                    // Send to background using a slightly modified approach, or just append to UI
-                    const opt = new Option(`🔍 DOM: ${c.kind} · ${new URL(c.url).pathname.split('/').pop()}`, c.url);
-                    $(c.kind === 'subtitle' ? 'subtitle' : 'media').append(opt);
-                    
-                    // Pre-select if nothing else is selected
-                    if (!items.find(x => x.kind !== 'subtitle') && c.kind !== 'subtitle') {
-                        $('media').value = c.url;
-                        $('send').disabled = false;
-                    }
-                }
-                $('status').textContent = `✅ ${domCands.length} media tersembunyi ditemukan via DOM!`;
+                // Register to background
+                chrome.runtime.sendMessage({ type: 'ADD_CANDIDATES', tabId: tab.id, items: domCands }, () => {
+                    refresh();
+                    $('status').textContent = `✅ ${domCands.length} media tersembunyi ditemukan via DOM!`;
+                });
             } else {
                 $('status').textContent = '⚠️ Tidak ada media statis di DOM. (Coba putar video untuk mendeteksi jaringan)';
             }
