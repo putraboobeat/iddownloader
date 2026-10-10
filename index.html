@@ -314,6 +314,7 @@ body[data-running="true"] .laser{display:block}
 <div id="u-error" role="alert"></div>
 </form></div></section>
 <div class="aside" id="aside-activity"><section class="card" aria-labelledby="activity-title"><div class="card-head"><h2 id="activity-title">Aktivitas unduhan</h2><span class="status-badge" id="activity-badge">SIAP</span></div><div class="card-body"><div class="status-visual" aria-hidden="true"><svg><use href="#i-download"/></svg></div><div id="status" role="status" aria-live="polite">Siap mengunduh</div><div class="progress-label"><span>PROGRES UNDUHAN</span><strong id="percent-label">0%</strong></div><div class="track" role="progressbar" aria-label="Progres unduhan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="bar" id="bar"></div></div><p class="hint">Progres dapat kembali ke awal saat beralih dari video ke audio.</p><div id="transfer-warning" role="status" hidden style="margin-top:16px;padding:13px;border:1px solid #946328;border-radius:9px;background:#302211;color:#ffce87;font-size:12px;line-height:1.7"></div><div id="completed-box" hidden class="completed-box"><div class="completed-head"><div class="completed-title"><svg style="width:18px;height:18px"><use href="#i-check"/></svg><span id="completed-box-title">File siap diunduh ke perangkat Anda</span></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><label style="font-size:11px;color:#86efac;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="auto-save" checked> Otomatis simpan ke PC</label><button type="button" class="button" id="btn-clear-server-files" style="padding:4px 8px;font-size:10px;background:#3f1414;border-color:#7f1d1d;color:#fca5a5" title="Hapus file di server langsung tanpa menunggu 2 jam">🧹 Bersihkan Server</button></div></div><p class="completed-hint">Klik tombol di bawah untuk menyimpan langsung ke HP/Laptop Anda (otomatis dihapus dari server dalam 2 jam).</p><div id="completed-files"></div></div><div class="live-meta"><div><small>KECEPATAN</small><strong id="speed">—</strong></div><div><small>ESTIMASI SISA</small><strong id="eta">—</strong></div></div><p id="updated">Menunggu status…</p><button class="button" type="button" id="stop-activity" disabled>■ HENTIKAN UNDUHAN</button><div class="copy-row"><button class="button" type="button" id="copy-status">Salin status & log</button><p id="copy-feedback" role="status"></p><textarea id="copy-fallback" aria-label="Status dan log untuk disalin" readonly hidden></textarea></div><details id="details"><summary>Lihat detail proses</summary><pre id="logs">Belum ada proses.</pre></details></div></section>
+<section class="card" id="history-card" style="margin-top:20px;display:none"><div class="card-head"><h2>Riwayat Tersimpan Lokal</h2><button type="button" id="btn-clear-history" style="font-size:10px;background:transparent;border:1px solid #4a1922;border-radius:4px;color:#ff475e;cursor:pointer;padding:3px 6px">Hapus</button></div><div class="card-body" id="history-list" style="font-size:11px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:5px"></div></section>
 <section class="card guide" id="guide" aria-labelledby="guide-title" hidden><h2 id="guide-title">Tiga langkah. Siap ditonton.</h2><ol><li><div>Tempel tautan<p>Gunakan alamat halaman film, video, atau subtitle.</p></div></li><li><div>Atur sesuai keinginan<p>Pilih kualitas, nama file, dan folder tujuan.</p></div></li><li><div>Unduh & simpan<p>Klik Play atau selesaikan verifikasi di Chrome jika diminta. Biarkan aplikasi tetap terbuka.</p></div></li></ol><div class="formats" aria-label="Format yang didukung"><span>MP4</span><span>MKV</span><span>MP3</span><span>FLAC</span><span>WEBM</span><span>YOUTUBE</span><span>INSTAGRAM</span><span>TIKTOK</span><span>HLS</span><span>SRT</span></div></section></div>
 </div>
 <section class="card" id="extension-guide" hidden><div class="card-head"><h2>Ekstensi Chrome</h2><a class="button primary" href="/extension.zip" download>↓ Unduh ekstensi Chrome</a></div><div class="card-body">
@@ -511,11 +512,47 @@ const zipFile=s.files.find(x=>x.is_zip||x.name.endsWith('.zip'));
 const filesToSave=zipFile?[zipFile]:s.files;
 filesToSave.forEach((f,i)=>{if(!autoSaved.has(f.url)){autoSaved.add(f.url);setTimeout(()=>{const a=document.createElement('a');a.href=f.url;a.download=f.name;document.body.appendChild(a);a.click();document.body.removeChild(a);},i*600);}});
 }
+if(isSuccess){
+  s.files.forEach(f=>{
+    if(!autoSaved.has(f.url+'_hist')){
+      autoSaved.add(f.url+'_hist');
+      const histTitle = (f.is_zip||f.name.endsWith('.zip')) ? '📦 '+f.name : f.name;
+      const originUrl = s.input_url ? s.input_url.split('\n')[0] : '';
+      localHistory.unshift({title: histTitle, url: originUrl, date: new Date().toLocaleString('id-ID')});
+      if(localHistory.length > 20) localHistory.pop();
+      localStorage.setItem('omnifetch_history', JSON.stringify(localHistory));
+      renderHistory();
+    }
+  });
+}
 }else{$('completed-files').innerHTML=''}
 if(s.status.includes('gagal'))$('details').open=true;
 }catch(e){
 connected=false;$('transfer-warning').hidden=true;document.body.dataset.running='false';$('activity-badge').textContent='TERPUTUS';$('stop').disabled=true;$('stop-activity').disabled=true;if($('u-start'))$('u-start').disabled=true;if($('u-stop'))$('u-stop').disabled=true;$('updated').textContent='Koneksi terputus. Status terakhir: '+(lastUpdated?lastUpdated.toLocaleTimeString('id-ID'):'belum tersedia');$('status').textContent='Program terputus. Buka kembali Mulai.command.';$('start').disabled=true;
 }}
+
+let localHistory = JSON.parse(localStorage.getItem('omnifetch_history')||'[]');
+function renderHistory(){
+  const list = $('history-list');
+  const card = $('history-card');
+  if(!list||!card) return;
+  if(localHistory.length === 0){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = localHistory.map(h => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#1e151a;padding:8px 10px;border-radius:6px;border:1px solid #3c1e27">
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:10px">
+        <strong style="color:#ffb3c1;font-size:11px">${h.title}</strong><br>
+        <span style="color:#888;font-size:10px">${h.date}</span>
+      </div>
+      <a href="javascript:void(0)" onclick="$('u-urls').value='${h.url}';switchSubmenu('universal');$('u-inspect-btn').click();" style="color:#ff335b;flex-shrink:0;text-decoration:none" title="Download Ulang">🔄 Ulangi</a>
+    </div>
+  `).join('');
+}
+if($('btn-clear-history'))$('btn-clear-history').onclick=()=>{if(confirm('Hapus semua riwayat?')){localHistory=[];localStorage.setItem('omnifetch_history','[]');renderHistory();}};
+renderHistory();
 
 if($('btn-clear-server-files'))$('btn-clear-server-files').onclick=async()=>{
 if(!confirm('Hapus semua file hasil unduhan dari server sekarang?'))return;
