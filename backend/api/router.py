@@ -233,7 +233,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 if not job:
                     return self.send_json(404, {'error': 'Job not found'})
                     
-                import platform, sys
+                import platform, sys, subprocess
                 from ..core.downloader import get_downloader_cmd
                 try:
                     dl_v = subprocess.run(get_downloader_cmd() + ['--version'], capture_output=True, text=True, timeout=5).stdout.strip()
