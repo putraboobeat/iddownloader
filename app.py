@@ -380,6 +380,16 @@ def run_job(data):
                         for d in folder.iterdir():
                             if d.is_dir():
                                 shutil.rmtree(d, ignore_errors=True)
+                        
+                        if data.get('media_type') == 'audio':
+                            audio_fmt = data.get('audio_format', 'mp3')
+                            for p in folder.iterdir():
+                                if p.is_file() and p.suffix.lower() in ('.mp4', '.mkv', '.webm', '.mov'):
+                                    add_log(f'Mengekstrak audio dari {p.name}...')
+                                    out_p = p.with_suffix(f'.{audio_fmt}')
+                                    subprocess.run(['ffmpeg', '-y', '-i', str(p), '-q:a', '0', '-map', 'a', str(out_p)], capture_output=True)
+                                    p.unlink(missing_ok=True)
+                                    
                         add_log('gallery-dl berhasil mengunduh media.')
                     else:
                         add_log('gallery-dl gagal, mencoba yt-dlp...')
