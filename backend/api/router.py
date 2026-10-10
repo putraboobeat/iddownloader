@@ -9,7 +9,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 from ..core.security import generate_session_id, clean_url
 from ..core.job_manager import job_manager
 from ..core.storage import get_job_files, read_metadata
-from ..core.config import VPS_ROOT, BASE_DIR
+from ..core import config
 
 class APIHandler(BaseHTTPRequestHandler):
     def end_headers(self):
@@ -211,8 +211,8 @@ class APIHandler(BaseHTTPRequestHandler):
                             'has_subs': has_subs,
                             'filesize_approx': filesize_approx,
                             'needs_merge': bool(not has_audio and info.get('ext') != 'mp3'),
-                            'processing_location': 'VPS' if VPS_ROOT else 'Lokal',
-                            'retention_seconds': RETENTION_SECONDS if VPS_ROOT else None,
+                            'processing_location': 'VPS' if config.VPS_ROOT else 'Lokal',
+                            'retention_seconds': config.RETENTION_SECONDS if config.VPS_ROOT else None,
                             'is_carousel': bool(entries and len(entries) > 1),
                             'carousel_count': len(entries) if entries else 0,
                             'is_instagram': 'instagram.com' in target_url.lower()
@@ -253,7 +253,7 @@ Time: {__import__('datetime').datetime.now().isoformat()}
 App Version: 2.0 (Universal Discovery Engine)
 Environment: {platform.system()} {platform.release()} / Python {sys.version.split()[0]}
 Downloader: {dl_v}
-Processing Location: {'VPS' if VPS_ROOT else 'Lokal'}
+Processing Location: {'VPS' if config.VPS_ROOT else 'Lokal'}
 
 -- Job Status --
 Job ID: {job.id}
@@ -310,7 +310,8 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
             
-            disposition = 'inline' if stream else f'attachment; filename="{filename}"'
+            from urllib.parse import quote
+            disposition = 'inline' if stream else f"attachment; filename*=UTF-8''{quote(filename)}"
             self.send_header('Content-Disposition', disposition)
             
             self.end_headers()
@@ -324,10 +325,10 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
         elif path == '/features':
             path = '/features.html'
             
-        safe_path = Path(BASE_DIR / path.lstrip('/')).resolve()
+        safe_path = Path(config.BASE_DIR / path.lstrip('/')).resolve()
         
         # Directory traversal protection
-        if not str(safe_path).startswith(str(BASE_DIR)):
+        if not str(safe_path).startswith(str(config.BASE_DIR)):
             self.send_error(403, 'Forbidden')
             return
             

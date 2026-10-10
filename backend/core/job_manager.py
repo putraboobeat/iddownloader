@@ -8,11 +8,12 @@ import shutil
 from pathlib import Path
 from typing import Dict, Optional, List
 
-from .config import VPS_ROOT, RETENTION_SECONDS, MAX_CONCURRENT_JOBS
+from . import config
 from .storage import save_metadata, read_metadata, ensure_job_zip, get_job_files
 from .downloader import build_ytdlp_command
 
-DB_PATH = Path("jobs_db.json") if not VPS_ROOT else VPS_ROOT / "jobs_db.json"
+def get_db_path():
+    return Path("jobs_db.json") if not config.VPS_ROOT else config.VPS_ROOT / "jobs_db.json"
 
 def validate_job_output(folder: Path) -> bool:
     """Validates the output files using ffprobe to ensure they are complete and valid."""
@@ -54,8 +55,8 @@ class Job:
         self.process: Optional[subprocess.Popen] = None
         
         base_name = data.get('name') or "Download"
-        if VPS_ROOT:
-            self.folder = VPS_ROOT / self.id
+        if config.VPS_ROOT:
+            self.folder = config.VPS_ROOT / self.id
         else:
             self.folder = Path.home() / 'Downloads' / f"{base_name}_{self.id[:8]}"
             
@@ -65,7 +66,7 @@ class Job:
                 'job_id': self.id,
                 'owner_session': self.owner_session,
                 'created_at': self.created_at,
-                'expires_at': self.created_at + RETENTION_SECONDS if VPS_ROOT else None,
+                'expires_at': self.created_at + config.RETENTION_SECONDS if config.VPS_ROOT else None,
                 'input_url': data.get('urls') or data.get('url')
             })
 
@@ -110,7 +111,8 @@ class Job:
                     self.status = "failed"
                     break # Fatal error, no retry
 
-                cmd = build_ytdlp_command(self.data, self.folder)
+                from .config import COOKIES_PATH
+                cmd = build_ytdlp_command(self.data, self.folder, cookies_path=config.COOKIES_PATH)
                 self.process = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace'
                 )
@@ -195,10 +197,11 @@ class JobManager:
         self.load_db()
         
     def load_db(self):
-        if not DB_PATH.exists():
+        db_path = get_db_path()
+        if not db_path.exists():
             return
         try:
-            with open(DB_PATH, 'r', encoding='utf-8') as f:
+            with open(db_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             for j_id, j_data in data.items():
                 status = j_data.get("status", "failed")
@@ -221,7 +224,7 @@ class JobManager:
         with self.lock:
             try:
                 data = {j_id: j.to_dict() for j_id, j in self.jobs.items()}
-                with open(DB_PATH, 'w', encoding='utf-8') as f:
+                with open(get_db_path(), 'w', encoding='utf-8') as f:
                     json.dump(data, f)
             except Exception as e:
                 print("Error saving DB:", e)
@@ -233,7 +236,7 @@ class JobManager:
                 raise ValueError("Batas antrean per pengguna tercapai (Maksimal 3 tugas bersamaan).")
                 
             active_count = sum(1 for j in self.jobs.values() if j.status in ("queued", "downloading"))
-            if active_count >= MAX_CONCURRENT_JOBS:
+            if active_count >= config.MAX_CONCURRENT_JOBS:
                 raise ValueError("Server sedang sibuk. Harap tunggu beberapa saat.")
                 
             job = Job(owner_session, data)
