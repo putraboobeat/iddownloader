@@ -49,6 +49,8 @@ def ensure_job_zip(folder_path, job_name=None):
         clean_zip_name = re.sub(r'[^\w .-]', '_', name).strip(' .') or 'Semua_File'
         zip_path = folder / f'{clean_zip_name}.zip'
         try:
+            with LOCK:
+                STATE['status'] = f'📦 Membungkus {len(valid_files)} file ke dalam .ZIP...'
             with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zf:
                 for vf in sorted(valid_files, key=lambda x: x.name):
                     zf.write(vf, arcname=vf.name)
@@ -530,13 +532,19 @@ def run_download(cmd):
                                        text=True, errors='replace', start_new_session=True)
             proc = PROCESS
             STATE['status'] = 'Membaca playlist dan daftar kualitas… Tunggu hingga proses selesai.'
+        
+        current_stage = '⬇️ Mengunduh media...'
         for raw in proc.stdout:
             line = raw.strip()
             if line.startswith('APP_PROGRESS:'):
                 text = line.split(':', 1)[1].strip()
+                # e.g. text is "45.0% | 1.2MiB/s | ETA 00:00:10"
+                # If there's already a | in current_stage, we don't want too many, but it's fine.
                 match = re.search(r'(\d+(?:\.\d+)?)%', text)
                 with LOCK:
-                    STATE['status'] = text
+                    # Combine stage and progress string so UI shows both nicely.
+                    # UI index.html splits by | to get speed/eta.
+                    STATE['status'] = f"{current_stage} — {text.split('|', 1)[0].strip()} | " + (text.split('|', 1)[1] if '|' in text else text)
                     if match:
                         STATE['percent'] = float(match.group(1))
             elif line.startswith('APP_FILE:'):
@@ -545,20 +553,29 @@ def run_download(cmd):
                 add_log(line)
                 stage = None
                 if 'Downloading webpage' in line or 'Extracting URL:' in line:
-                    stage = 'Menghubungi server video…'
+                    stage = 'Menghubungi server media…'
+                elif '[download] Downloading item' in line or '[download] Downloading video' in line:
+                    stage = line.replace('[download]', '🎬').strip()
                 elif 'Downloading m3u8 information' in line or 'Checking m3u8 live status' in line:
                     stage = 'Membaca playlist dan memeriksa kualitas video…'
                 elif 'Downloading m3u8 manifest' in line:
                     stage = 'Menyiapkan daftar potongan video / audio…'
                 elif '[download] Destination:' in line:
-                    stage = 'Mengambil potongan pertama… Progres akan muncul setelah data diterima.'
+                    stage = '📥 Mengambil data: ' + line.split('Destination:')[1].strip()
                 elif 'Retrying' in line:
-                    stage = 'Koneksi tersendat. Mencoba kembali…'
+                    stage = '⚠️ Koneksi tersendat. Mencoba kembali…'
                 elif '[Merger]' in line or '[VideoRemuxer]' in line:
-                    stage = 'Menggabungkan video dan audio…'
+                    stage = '🔄 Menggabungkan video dan audio…'
+                elif '[ExtractAudio]' in line:
+                    stage = '🎵 Mengekstrak audio (MP3/M4A)…'
+                elif 'Fixing' in line or 'Running' in line:
+                    stage = '⚙️ Finalisasi file media…'
+                
                 if stage:
+                    current_stage = stage
                     with LOCK:
                         if not STATE['cancelled']:
+                            # Only overwrite status if it's a major stage, to avoid overwriting fast progress
                             STATE['status'] = stage
         proc.stdout.close()
         code = proc.wait()
