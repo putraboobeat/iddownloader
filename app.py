@@ -359,7 +359,32 @@ def run_job(data):
             status('Memulai proses unduhan yt-dlp…')
             cmd, folder, batch_file = build_ytdlp_command(data)
             try:
-                run_download(cmd)
+                is_ig = 'instagram.com' in data.get('url', '').lower()
+                gdl_bin = shutil.which('gallery-dl') or (Path(sys.executable).parent / 'gallery-dl').resolve()
+                
+                if is_ig and os.path.exists(gdl_bin):
+                    add_log('Mencoba mengunduh Instagram media dengan gallery-dl...')
+                    gdl_cmd = [str(gdl_bin)]
+                    if COOKIES_PATH:
+                        gdl_cmd += ['--cookies', str(COOKIES_PATH)]
+                    # Download directly to folder without creating complex subdirs if possible, but gallery-dl does it anyway
+                    gdl_cmd += ['--directory', str(folder), data['url']]
+                    
+                    proc = subprocess.run(gdl_cmd, cwd=folder, capture_output=True, text=True)
+                    if proc.returncode == 0:
+                        # Move all downloaded files from subdirectories to main folder
+                        for ext_file in folder.rglob('*'):
+                            if ext_file.is_file() and ext_file.parent != folder:
+                                shutil.move(str(ext_file), str(folder / ext_file.name))
+                        for d in folder.iterdir():
+                            if d.is_dir():
+                                shutil.rmtree(d, ignore_errors=True)
+                        add_log('gallery-dl berhasil mengunduh media.')
+                    else:
+                        add_log('gallery-dl gagal, mencoba yt-dlp...')
+                        run_download(cmd)
+                else:
+                    run_download(cmd)
             finally:
                 if batch_file and os.path.exists(batch_file):
                     try:
