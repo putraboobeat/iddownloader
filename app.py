@@ -154,6 +154,8 @@ def build_command(data):
             '--socket-timeout', '30', '--no-update',
             '-f', formats.get(quality, formats['best']),
             '--merge-output-format', 'mp4', '--remux-video', 'mp4', '-P', str(folder), '-o', output]
+    if shutil.which('aria2c'):
+        cmd += ['--external-downloader', 'aria2c', '--external-downloader-args', 'aria2c:-x 16 -s 16 -k 1M']
     if data.get('forward', True):
         cmd += ['--extractor-args', 'generic:variant_query;fragment_query']
     if str(data.get('referer', '')).strip():
@@ -184,6 +186,10 @@ def build_ytdlp_command(data):
         '--socket-timeout', '30', '--no-update',
         '-P', str(folder)
     ]
+    
+    if shutil.which('aria2c'):
+        cmd += ['--external-downloader', 'aria2c', '--external-downloader-args', 'aria2c:-x 16 -s 16 -k 1M']
+        add_log('Turbo Engine (Aria2c) diaktifkan! Menggunakan 16-jalur koneksi paralalel.')
     try:
         concurrent = int(data.get('concurrent_fragments') or 4)
         if 1 <= concurrent <= 16:
