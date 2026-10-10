@@ -2146,11 +2146,12 @@
 
     </main>
     <script>
-        const token = '__APP_TOKEN__', $ = id => document.getElementById(id); let first = true, lastSnapshot = null, lastUpdated = null, connected = false, progressSignature = "", progressChangedAt = Date.now();
-        let appSessionId = localStorage.getItem('omni_session'); if (!appSessionId) { appSessionId = Math.random().toString(36).substring(2); localStorage.setItem('omni_session', appSessionId); }
-        async function api(path, data) { const r = await fetch(path, { method: data === undefined ? 'GET' : 'POST', headers: { 'X-App-Token': token, 'X-App-Session': appSessionId, 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) }); const j = await r.json(); if (!r.ok) throw Error(j.error || 'Permintaan gagal'); return j }
-        $('form').onsubmit = async e => { e.preventDefault(); $('error').textContent = ''; $('start').disabled = true; try { await api('/start', { url: $('url').value, mode: $('mode').value, subtitles: $('subtitles').checked, subtitle_url: $('subtitle_url').value, name: $('name').value, quality: $('quality').value, folder: $('folder').value, referer: $('referer').value, forward: $('forward').checked }); await poll() } catch (e) { $('error').textContent = e.message; $('start').disabled = false } };
-        async function stopDownload() { try { await api('/stop', {}); $('status').textContent = 'Menghentikan…'; await poll() } catch (e) { $('error').textContent = e.message } }
+        const $ = id => document.getElementById(id); let first = true, lastSnapshot = null, lastUpdated = null, connected = false, progressSignature = "", progressChangedAt = Date.now();
+        let appSessionId = localStorage.getItem('omni_session'); if (!appSessionId) { appSessionId = Math.random().toString(36).substring(2) + Date.now().toString(36); localStorage.setItem('omni_session', appSessionId); }
+        let currentJobId = null;
+        async function api(path, data) { const r = await fetch(path, { method: data === undefined ? 'GET' : 'POST', headers: { 'X-App-Session': appSessionId, 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) }); const j = await r.json(); if (!r.ok) throw Error(j.error || 'Permintaan gagal'); return j }
+        $('form').onsubmit = async e => { e.preventDefault(); $('error').textContent = ''; $('start').disabled = true; try { const r = await api('/api/start', { url: $('url').value, mode: $('mode').value, subtitles: $('subtitles').checked, subtitle_url: $('subtitle_url').value, name: $('name').value, quality: $('quality').value, folder: $('folder').value, referer: $('referer').value, forward: $('forward').checked }); currentJobId = r.job_id; await poll() } catch (e) { $('error').textContent = e.message; $('start').disabled = false } };
+        async function stopDownload() { try { await api('/api/stop', { job_id: currentJobId }); $('status').textContent = 'Menghentikan…'; await poll() } catch (e) { $('error').textContent = e.message } }
         $('stop').onclick = stopDownload; $('stop-activity').onclick = stopDownload;
         $('copy-status').onclick = async () => {
             const s = lastSnapshot; let report = ['OmniFetch Studio — Laporan Proses', 'Waktu status: ' + (lastUpdated ? lastUpdated.toLocaleString('id-ID') : 'Belum tersedia'), 'Koneksi aplikasi: ' + (connected ? 'Terhubung' : 'Terputus / belum tersedia'), 'Status: ' + (s ? s.status : $('status').textContent), 'Progres: ' + (s ? s.percent : 0) + '%', 'Peringatan: ' + ($('transfer-warning').hidden ? 'Tidak ada' : $('transfer-warning').textContent), 'Proses aktif: ' + (s?.running ? 'Ya (pada pembaruan terakhir)' : 'Tidak'), 'Perangkat: ' + $('tools').textContent, '', 'Log:', ...(s?.logs || ['Belum ada log.'])].join('\n').replace(/https?:\/\/[^\s"']+/g, '[URL]').replace(/([?&](?:t|token|sig|signature)=)[^\s&]+/gi, '$1[disembunyikan]');
@@ -2227,7 +2228,7 @@
                 $('u-inspect-btn').disabled = true; $('u-inspect-btn').querySelector('span').textContent = 'Menganalisis info & pilihan format…';
                 $('u-error').textContent = '';
                 try {
-                    const res = await api('/inspect?url=' + encodeURIComponent(targetUrl));
+                    const res = await api('/api/inspect?url=' + encodeURIComponent(targetUrl));
                     if (res.ok && res.info) {
                         const info = res.info;
                         currentInspectData = info;
@@ -2273,7 +2274,7 @@
                                 const u = validLines[i];
                                 const cardId = 'bulk-card-' + i;
                                 list.innerHTML += '<div id="' + cardId + '" style="width:100px;flex-shrink:0;background:#201419;border-radius:8px;padding:6px;border:1px solid #4a1c27;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:86px;height:56px;background:#111;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden"><span style="font-size:18px">⏳</span></div><div style="font-size:9px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center">Memuat...</div></div>';
-                                api('/inspect?url=' + encodeURIComponent(u)).then(r => {
+                                api('/api/inspect?url=' + encodeURIComponent(u)).then(r => {
                                     const card = $(cardId);
                                     if (!card) return;
                                     if (r.ok && r.info) {
@@ -2298,7 +2299,7 @@
 
         async function poll() {
             try {
-                const s = await api('/status'); lastSnapshot = s; lastUpdated = new Date(); connected = true; $('updated').textContent = 'Status aplikasi diterima ' + lastUpdated.toLocaleTimeString('id-ID'); const parts = s.status.split('|'); $('speed').textContent = parts.length > 1 ? parts[1].trim() : '—'; $('eta').textContent = parts.length > 2 ? parts[2].replace(/^\s*ETA\s*/, '').trim() : '—'; $('stop-activity').disabled = !s.running; if (s.vps) { $('folder-section').style.display = 'none' } else { $('folder-section').style.display = '' } if (first) { $('folder').value = s.folder; first = false; } $('status').textContent = s.status; document.body.dataset.running = String(s.running); $('activity-badge').textContent = s.running ? 'BERJALAN' : s.status.startsWith('Selesai') || s.status.startsWith('Video selesai') ? 'SELESAI' : s.status.toLowerCase().includes('gagal') ? 'PERIKSA' : 'SIAP'; updateTransferWarning(s); $('percent-label').textContent = Number(s.percent).toFixed(1).replace(/\.0$/, '') + '%'; $('start').disabled = s.running; $('stop').disabled = !s.running; if ($('u-start')) $('u-start').disabled = s.running; if ($('u-stop')) $('u-stop').disabled = !s.running; $('bar').style.width = s.percent + '%'; $('progress').setAttribute('aria-valuenow', s.percent); $('logs').textContent = s.logs.join('\n') || 'Belum ada proses.'; $('tools').textContent = (s.vps ? 'VPS · Hasil otomatis dihapus setelah 2 jam · ' : '') + 'Mesin Inti: ' + (s.tools.yt ? 'tersedia' : 'belum terpasang') + '  ·  Konektor: ' + (s.tools.ffmpeg ? 'tersedia' : 'belum terpasang');
+                const s = await api(currentJobId ? '/api/status?job_id=' + currentJobId : '/api/status'); lastSnapshot = s; lastUpdated = new Date(); connected = true; $('updated').textContent = 'Status aplikasi diterima ' + lastUpdated.toLocaleTimeString('id-ID'); const parts = s.status ? s.status.split('|') : []; $('speed').textContent = parts.length > 1 ? parts[1].trim() : '—'; $('eta').textContent = parts.length > 2 ? parts[2].replace(/^\s*ETA\s*/, '').trim() : '—'; $('stop-activity').disabled = !s.running; if (s.vps) { $('folder-section').style.display = 'none' } else { $('folder-section').style.display = '' } if (first && s.folder) { $('folder').value = s.folder; first = false; } $('status').textContent = s.status || 'Menunggu status...'; document.body.dataset.running = String(s.running); $('activity-badge').textContent = s.running ? 'BERJALAN' : (s.status && (s.status.startsWith('Selesai') || s.status.startsWith('Video selesai'))) ? 'SELESAI' : (s.status && s.status.toLowerCase().includes('gagal')) ? 'PERIKSA' : 'SIAP'; updateTransferWarning(s); $('percent-label').textContent = Number(s.percent || 0).toFixed(1).replace(/\.0$/, '') + '%'; $('start').disabled = s.running; $('stop').disabled = !s.running; if ($('u-start')) $('u-start').disabled = s.running; if ($('u-stop')) $('u-stop').disabled = !s.running; $('bar').style.width = (s.percent || 0) + '%'; $('progress').setAttribute('aria-valuenow', s.percent || 0); $('logs').textContent = (s.logs || []).join('\n') || 'Belum ada proses.'; $('tools').textContent = (s.vps ? 'VPS · Hasil otomatis dihapus setelah 2 jam · ' : '') + 'Sistem OK';
                 const hasFiles = s.files && s.files.length > 0; $('completed-box').hidden = !hasFiles;
                 if (hasFiles) {
                     const isSuccess = s.status.startsWith('Selesai') || s.status.startsWith('Video selesai'); $('completed-box-title').textContent = isSuccess ? 'File siap diunduh ke perangkat Anda' : 'File yang berhasil disimpan (subtitle/video):';
@@ -2366,7 +2367,7 @@
         if ($('btn-clear-server-files')) $('btn-clear-server-files').onclick = async () => {
             if (!confirm('Hapus semua file hasil unduhan dari server sekarang?')) return;
             try {
-                await api('/clear-files', {});
+                await api('/api/clear', {});
                 $('completed-box').hidden = true;
                 $('completed-files').innerHTML = '';
             } catch (e) { alert('Gagal membersihkan server: ' + e.message); }
@@ -2439,7 +2440,7 @@
             };
             if ($('u-pl-start').value) payload.playlist_start = parseInt($('u-pl-start').value, 10);
             if ($('u-pl-end').value) payload.playlist_end = parseInt($('u-pl-end').value, 10);
-            try { await api('/start', payload); await poll() } catch (err) { $('u-error').textContent = err.message; $('u-start').disabled = false; }
+            try { const r = await api('/api/start', payload); currentJobId = r.job_id; await poll() } catch (err) { $('u-error').textContent = err.message; $('u-start').disabled = false; }
         };
         $('u-stop').onclick = stopDownload;
         function updateMode() { const sub = $('mode').value === 'subtitle'; $('subtitle-tab').classList.toggle('active', sub); $('video-tab').classList.toggle('active', !sub); $('subtitle-tab').setAttribute('aria-pressed', String(sub)); $('video-tab').setAttribute('aria-pressed', String(!sub)); $('subtitle-options').hidden = sub; $('quality').disabled = sub; $('url').placeholder = sub ? 'Tempel tautan subtitle .vtt atau .srt di sini…' : 'Tempel alamat halaman film atau tautan video di sini…'; $('url-hint').textContent = sub ? 'Subtitle disimpan sebagai SRT di folder pilihan Anda.' : 'Tidak perlu Inspect Element. Chrome akan terbuka untuk mencari video.'; $('start-label').textContent = sub ? 'Unduh subtitle' : 'Mulai unduh' }

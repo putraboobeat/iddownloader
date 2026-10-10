@@ -1,1 +1,40 @@
-<!doctype html><html lang="id"><meta charset="utf-8"><title>Pengaturan OmniFetch</title><style>body{max-width:540px;margin:60px auto;padding:24px;background:#111116;color:white;font:15px/1.7 system-ui}h1{color:#ff263e}input,button{box-sizing:border-box;width:100%;padding:14px;margin:10px 0;border-radius:9px;border:1px solid #444;background:#22222a;color:white;font:inherit}button{background:#e7193f;cursor:pointer;font-weight:700}p{color:#b8b8c4;font-size:13px}label{font-size:13px;font-weight:600;color:#ddd}</style><h1>Pengaturan OmniFetch Companion</h1><label for="app">Alamat Aplikasi / VPS OmniFetch</label><input id="app" placeholder="https://dw.pmlab.id atau http://127.0.0.1:6666"><p>Salin alamat OmniFetch yang sedang berjalan di VPS atau komputer lokal.</p><label for="token">Token Keamanan Aplikasi (Opsional untuk VPS)</label><input id="token" placeholder="Tempel token X-App-Token jika diminta"><button id="save">Simpan pengaturan</button><p id="status" role="status"></p><script src="options.js"></script></html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <title>Pengaturan OmniFetch</title>
+    <style>
+        body { max-width:540px; margin:60px auto; padding:24px; background:#111116; color:white; font:15px/1.7 system-ui; }
+        h1 { color:#ff263e; }
+        input[type="text"], input[type="password"], button { box-sizing:border-box; width:100%; padding:14px; margin:10px 0; border-radius:9px; border:1px solid #444; background:#22222a; color:white; font:inherit; }
+        button { background:#e7193f; cursor:pointer; font-weight:700; border:none; transition:opacity 0.2s; }
+        button:hover { opacity:0.9; }
+        p { color:#b8b8c4; font-size:13px; }
+        label { font-size:13px; font-weight:600; color:#ddd; }
+        .checkbox-wrap { display:flex; align-items:center; gap:10px; margin:20px 0; background:#1a1a24; padding:15px; border-radius:8px; border:1px solid #333; }
+        .checkbox-wrap input { width:auto; margin:0; transform:scale(1.3); }
+        #status { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Pengaturan OmniFetch Companion</h1>
+    
+    <label for="app">Alamat Aplikasi / VPS OmniFetch</label>
+    <input type="text" id="app" placeholder="https://dw.pmlab.id atau http://127.0.0.1:6666">
+    <p>Salin alamat OmniFetch yang sedang berjalan di VPS atau komputer lokal. (Wajib HTTPS untuk server nonlokal)</p>
+    
+    <label for="token">Session Token</label>
+    <input type="password" id="token" placeholder="Tempel token X-App-Session jika diminta">
+    
+    <div class="checkbox-wrap">
+        <input type="checkbox" id="sync">
+        <label for="sync" style="font-size:14px;color:white">Sinkronisasi Cookie Otomatis (Eksperimental)</label>
+    </div>
+    <p style="margin-top:-10px;font-size:12px">Membaca cookie sesi (Instagram, TikTok, YouTube) dan mengirimkannya ke OmniFetch. Aktifkan hanya untuk VPS Anda sendiri.</p>
+    
+    <button id="save">Simpan pengaturan</button>
+    <p id="status" role="status"></p>
+
+    <script src="options.js" type="module"></script>
+</body>
+</html>

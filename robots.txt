@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /download/
+Disallow: /stream/
 
 Sitemap: https://dw.pmlab.id/sitemap.xml

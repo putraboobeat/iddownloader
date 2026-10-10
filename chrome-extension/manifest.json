@@ -7,23 +7,23 @@
     "webRequest",
     "storage",
     "activeTab",
-    "cookies",
     "contextMenus",
     "scripting",
     "alarms"
   ],
   "host_permissions": [
-    "https://*.idlixku.com/*",
-    "https://*.majorplay.net/*",
-    "https://*.instagram.com/*",
-    "https://*.youtube.com/*",
-    "https://*.tiktok.com/*",
-    "https://twitter.com/*",
-    "https://x.com/*",
-    "*://*/*"
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "optional_permissions": [
+    "cookies"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/main.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
@@ -35,26 +35,6 @@
       "128": "icons/icon128.png"
     }
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://*.idlixku.com/*"
-      ],
-      "js": ["panel.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://www.youtube.com/*",
-        "https://www.instagram.com/*",
-        "https://www.tiktok.com/*",
-        "https://twitter.com/*",
-        "https://x.com/*"
-      ],
-      "js": ["injector.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
