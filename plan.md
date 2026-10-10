@@ -53,4 +53,32 @@ Memberikan nilai lebih (Value Add) bagi *Content Creator*.
 - [ ] **GIF Maker:** Mengubah cuplikan video singkat (misal 5 detik) langsung menjadi animasi `.gif` (untuk stiker WhatsApp).
 
 ---
+---
 *Dokumen ini akan terus diperbarui seiring berjalannya proses pengembangan.*
+
+---
+
+## 🔮 FASE EKSPANSI: CHROME EXTENSION "GOD-TIER"
+Ekstensi saat ini sudah canggih karena memanfaatkan *DevTools Protocol* untuk mendeteksi HLS (*Streaming*). Namun, untuk mencapai level "Dewa", ekstensi ini harus menjadi "Asisten Hantu" yang hidup di dalam setiap website sosial media yang dibuka pengguna. 
+
+Berikut adalah rancangan modifikasi tingkat dewanya:
+
+- [ ] **1. Injeksi Tombol Ajaib (DOM Injection)**
+  - **YouTube:** Menambahkan tombol "⬇️ OmniFetch" di bawah video (tepat di sebelah tombol *Like/Share*).
+  - **Instagram:** Menambahkan ikon unduh di setiap *Reels*, postingan gambar, dan *Carousel* secara otomatis (menyatu dengan UI asli Instagram).
+  - **TikTok:** Menambahkan tombol unduh tanpa *watermark* di samping tombol komentar pada tampilan web TikTok.
+  - *Cara kerja:* Sekali klik tombol tersebut, ekstensi akan langsung "melempar" URL ke server VPS di latar belakang tanpa pengguna harus membuka *tab* aplikasi OmniFetch.
+
+- [ ] **2. Silent Auto-Cookie Sync (Sinkronisasi Siluman)**
+  - Ekstensi secara otomatis akan menyinkronkan (mengirim) *cookies* akun Instagram/TikTok/YouTube pengguna ke VPS secara berkala di latar belakang.
+  - Pengguna tidak akan pernah lagi menemui masalah *"Video Private"* atau *"Batas Login"*, karena VPS selalu memiliki akses identitas yang *fresh* 100% tanpa campur tangan manual.
+
+- [ ] **3. Smart Sniffer Popup (Detektor Media Aktif)**
+  - Ekstensi akan memantau lalu lintas jaringan web (*Network Intercept*). Jika mendeteksi ada file video MP4 atau HLS m3u8 rahasia yang tersembunyi (biasanya di web bajakan atau situs *streaming* berbayar), ekstensi akan memunculkan *widget* kecil berkedip di pojok kanan bawah layar: *"1 Video Tersembunyi Ditemukan. Unduh?"*
+
+- [ ] **4. Klik Kanan Ajaib (Context Menu Power)**
+  - Cukup klik kanan pada link, gambar, atau *player* video apa pun di web, dan akan muncul menu: **"🚀 OmniFetch: Sedot ke VPS"**. Sangat praktis untuk mendownload video dari web artikel berita atau portal acak.
+
+- [ ] **5. Mass Media Sweeper (Penyapu Halaman)**
+  - Tombol khusus di menu ekstensi: **"Raup Semua Media di Halaman Ini"**.
+  - Ekstensi akan melakukan pemindaian (X-Ray) ke seluruh elemen HTML di halaman yang sedang dibuka, mengumpulkan semua link video/gambar (misalnya di web forum seperti Kaskus/Reddit), lalu mengirimkannya sekaligus ke VPS untuk dibungkus ke file `.zip`.
