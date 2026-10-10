@@ -80,6 +80,7 @@ class DownloadEndpointTests(unittest.TestCase):
                 'sub_lang': 'id,en'
             }
             cmd, folder, batch_file = app.build_ytdlp_command(data_video)
+            self.assertTrue(all(isinstance(x, str) for x in cmd), f"cmd elements must be str: {cmd}")
             self.assertIn('--no-cache-dir', cmd)
             self.assertIn('-f', cmd)
             self.assertIn('--merge-output-format', cmd)

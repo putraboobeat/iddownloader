@@ -111,6 +111,16 @@ def downloader():
     binary = shutil.which('yt-dlp')
     return [binary] if binary else None
 
+def get_downloader_cmd(custom=None):
+    if custom:
+        if isinstance(custom, list):
+            return list(custom)
+        return [str(custom)]
+    dl = downloader()
+    if dl:
+        return list(dl)
+    return ['yt-dlp']
+
 def add_log(line):
     # Do not expose signed URL tokens in the displayed log.
     line = re.sub(r'https?://[^\s\"\']+', '[URL]', line)
@@ -162,7 +172,7 @@ def output_name(data):
 def build_ytdlp_command(data):
     folder = Path(str(data.get('folder', '')).strip() or '~/Downloads').expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
-    cmd = [data.get('yt_dlp') or downloader() or 'yt-dlp']
+    cmd = get_downloader_cmd(data.get('yt_dlp'))
     cmd += [
         '--no-cache-dir', '--ignore-config', '--newline', '--no-colors', '--progress', '--no-quiet',
         '--progress-template', 'download:APP_PROGRESS:%(progress._percent_str)s | %(progress._speed_str)s | ETA %(progress._eta_str)s',
@@ -631,7 +641,7 @@ class Handler(BaseHTTPRequestHandler):
             target_url = clean_url((qs.get('url') or [''])[0])
             if not target_url:
                 return self.send({'error': 'URL tidak valid'}, 400)
-            cmd = [downloader() or 'yt-dlp', '--no-cache-dir', '--dump-single-json', '--socket-timeout', '15']
+            cmd = get_downloader_cmd() + ['--no-cache-dir', '--no-update', '--dump-single-json', '--socket-timeout', '15']
             cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
             if 'instagram.com' in target_url.lower():
                 cmd += ['--add-header', 'Referer:https://www.instagram.com/']
@@ -692,7 +702,14 @@ class Handler(BaseHTTPRequestHandler):
                     }
                     self.send({'ok': True, 'info': result})
                 else:
-                    self.send({'error': proc.stderr[:300] if proc.stderr else 'Gagal menganalisis URL.'}, 400)
+                    err = proc.stderr.strip() if proc.stderr else 'Gagal menganalisis URL.'
+                    lines = [line.strip() for line in err.splitlines() if line.strip() and not line.strip().startswith('WARNING:')]
+                    clean_err = '\n'.join(lines) if lines else err
+                    if 'no video formats' in clean_err.lower():
+                        clean_err = 'Postingan ini berupa foto/gambar tanpa stream video, atau memerlukan autentikasi login Instagram.'
+                    elif any(k in clean_err.lower() for k in ('login required', 'cookies', 'rate-limit', 'checkpoint')):
+                        clean_err = 'Instagram meminta login/sesi akun. Silakan klik tombol "🍪 Pasang Cookie Medsos" di sebelah tombol Scan untuk menyinkronkan sesi.'
+                    self.send({'error': clean_err[:300]}, 400)
             except subprocess.TimeoutExpired:
                 self.send({'error': 'Waktu analisis habis (timeout 20s).'}, 408)
             except Exception as exc:
@@ -832,8 +849,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/update-ytdlp':
                 def update_worker():
                     add_log('Memulai pengecekan & pembaruan yt-dlp…')
-                    yt = downloader() or 'yt-dlp'
-                    res = subprocess.run([yt, '-U'], capture_output=True, text=True)
+                    yt = get_downloader_cmd()
+                    res = subprocess.run(yt + ['-U'], capture_output=True, text=True)
                     out = (res.stdout + '\n' + res.stderr).strip()
                     if 'ERROR: You installed yt-dlp with pip' in out or res.returncode != 0:
                         res2 = subprocess.run([sys.executable, '-m', 'pip', 'install', '-U', 'yt-dlp'], capture_output=True, text=True)
