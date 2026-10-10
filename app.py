@@ -26,7 +26,7 @@ import zipfile
 os.environ['PATH'] = os.pathsep.join([os.environ.get('PATH', ''), '/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bin')])
 TOKEN = secrets.token_urlsafe(32)
 LOCK = threading.RLock()
-STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False, 'files': []}
+STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [], 'folder': str(Path.home() / 'Downloads'), 'cancelled': False, 'files': [], 'session_id': ''}
 PROCESS = None
 COOKIES_PATH = None  # Path ke file cookies.txt untuk Instagram/TikTok/YouTube
 
@@ -634,7 +634,20 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         elif self.path == '/status' and self.authorized():
             with LOCK:
-                snapshot = dict(STATE)
+                req_session = self.headers.get('X-App-Session', '')
+                if not STATE.get('session_id') or STATE.get('session_id') == req_session:
+                    snapshot = dict(STATE)
+                else:
+                    snapshot = {
+                        'running': STATE['running'],
+                        'status': 'Server sedang memproses antrean pengguna lain...' if STATE['running'] else 'Siap mengunduh',
+                        'percent': 0,
+                        'logs': [],
+                        'folder': '',
+                        'cancelled': False,
+                        'files': [],
+                        'session_id': req_session
+                    }
             snapshot['vps'] = bool(VPS_ROOT)
             snapshot['retention_seconds'] = 7200 if VPS_ROOT else 0
             snapshot['tools'] = {'yt': bool(downloader()), 'ffmpeg': bool(shutil.which('ffmpeg'))}
@@ -952,10 +965,11 @@ class Handler(BaseHTTPRequestHandler):
                     with LOCK:
                         if STATE['running']:
                             raise ValueError('Masih ada unduhan yang berjalan.')
+                        session_id = self.headers.get('X-App-Session', '')
                         folder = str(Path(data.get('folder') or '~/Downloads').expanduser().resolve())
                         STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder,
                                      status='Menyiapkan unduhan yt-dlp…', input_url='\n'.join(urls),
-                                     video_url='', subtitle_urls=[], files=[])
+                                     video_url='', subtitle_urls=[], files=[], session_id=session_id)
                         threading.Thread(target=run_job, args=(data,), daemon=True).start()
                     return self.send({'ok': True})
 
@@ -971,11 +985,12 @@ class Handler(BaseHTTPRequestHandler):
                 with LOCK:
                     if STATE['running']:
                         raise ValueError('Masih ada unduhan yang berjalan.')
+                    session_id = self.headers.get('X-App-Session', '')
                     if data.get('mode') == 'subtitle' or urlsplit(data['url']).path.lower().endswith(('.vtt', '.srt')):
                         folder = str(Path(data.get('folder') or '~/Downloads').expanduser().resolve())
                     else:
                         cmd, folder = build_command(data)
-                    STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder, status='Menghubungkan…', input_url=data['url'], video_url='', subtitle_urls=[], files=[])
+                    STATE.update(running=True, cancelled=False, percent=0, logs=[], folder=folder, status='Menghubungkan…', input_url=data['url'], video_url='', subtitle_urls=[], files=[], session_id=session_id)
                     threading.Thread(target=run_job, args=(data,), daemon=True).start()
                 self.send({'ok': True})
             elif self.path == '/stop':

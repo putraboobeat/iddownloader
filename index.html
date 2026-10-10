@@ -373,7 +373,8 @@ body[data-running="true"] .laser{display:block}
 </main>
 <script>
 const token='__APP_TOKEN__', $=id=>document.getElementById(id);let first=true,lastSnapshot=null,lastUpdated=null,connected=false,progressSignature="",progressChangedAt=Date.now();
-async function api(path,data){const r=await fetch(path,{method:data===undefined?'GET':'POST',headers:{'X-App-Token':token,'Content-Type':'application/json'},body:data===undefined?undefined:JSON.stringify(data)});const j=await r.json();if(!r.ok)throw Error(j.error||'Permintaan gagal');return j}
+let appSessionId=localStorage.getItem('omni_session');if(!appSessionId){appSessionId=Math.random().toString(36).substring(2);localStorage.setItem('omni_session',appSessionId);}
+async function api(path,data){const r=await fetch(path,{method:data===undefined?'GET':'POST',headers:{'X-App-Token':token,'X-App-Session':appSessionId,'Content-Type':'application/json'},body:data===undefined?undefined:JSON.stringify(data)});const j=await r.json();if(!r.ok)throw Error(j.error||'Permintaan gagal');return j}
 $('form').onsubmit=async e=>{e.preventDefault();$('error').textContent='';$('start').disabled=true;try{await api('/start',{url:$('url').value,mode:$('mode').value,subtitles:$('subtitles').checked,subtitle_url:$('subtitle_url').value,name:$('name').value,quality:$('quality').value,folder:$('folder').value,referer:$('referer').value,forward:$('forward').checked});await poll()}catch(e){$('error').textContent=e.message;$('start').disabled=false}};
 async function stopDownload(){try{await api('/stop',{});$('status').textContent='Menghentikan…';await poll()}catch(e){$('error').textContent=e.message}}
 $('stop').onclick=stopDownload;$('stop-activity').onclick=stopDownload;
