@@ -117,8 +117,7 @@ body[data-running="true"] .status-visual{box-shadow:0 0 35px rgba(243,21,53,0.18
 @media(max-width:680px){.shell{padding:0 18px}.nav{padding:10px 16px}.wordmark{font-size:20px}.nav-links{margin-left:auto}.nav-link{font-size:11px;padding:6px 8px}.local{display:none}h1{font-size:38px}.row{grid-template-columns:1fr}}
 
 .laser{display:none;position:fixed;inset:0 0 auto;height:3px;z-index:2000;overflow:hidden;background:#571225;box-shadow:0 0 13px rgba(255,33,74,0.45);pointer-events:none}
-.cursor{display:inline-block;animation:blink 1s step-end infinite;color:#ff335b;margin-left:2px;font-weight:400}
-@keyframes blink{50%{opacity:0}}
+@keyframes marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
 .laser:after{content:'';position:absolute;left:-35%;width:35%;height:100%;background:linear-gradient(90deg,transparent,#ff1749 45%,#fff 90%,#ff9dac);box-shadow:0 0 18px #ff335b;animation:laser-sweep 1.6s linear infinite}
 body[data-running="true"] .laser{display:block}
 @keyframes laser-sweep{to{left:100%}}
@@ -237,7 +236,7 @@ body[data-running="true"] .laser{display:block}
 <div class="subtitle-area" id="subtitle-options"><label class="check"><input type="checkbox" id="subtitles" checked>Unduh juga subtitle yang terdeteksi</label><label for="subtitle_url">Tautan subtitle tambahan <span class="optional">(opsional)</span></label><input id="subtitle_url" placeholder="https://…/subtitle.vtt" spellcheck="false"><p class="hint">Aktifkan subtitle di pemutar agar terdeteksi. VTT otomatis diubah ke SRT (UTF-8) dan disimpan di folder video.</p></div>
 <details><summary>Pengaturan tambahan</summary><div id="folder-section" style="display:none"><label for="folder">Folder utama penyimpanan</label><div class="folder"><input id="folder" value="~/Downloads"><button class="button" type="button" id="choose"><svg><use href="#i-folder"/></svg>Pilih folder</button></div><p class="hint">Folder sesuai nama film dibuat otomatis. Video dan subtitle utama memakai nama yang sama: Nama Film/Nama Film.mp4 dan Nama Film.srt.</p></div><label for="mode">Jenis tautan</label><select id="mode"><option value="auto">Deteksi otomatis</option><option value="page">Halaman film (cari melalui Chrome)</option><option value="direct">Tautan video / playlist langsung</option><option value="subtitle">Subtitle saja (VTT/SRT)</option></select><label for="referer">Alamat halaman asal <span class="optional">(opsional)</span></label><input id="referer" placeholder="Alamat situs tempat video diputar" spellcheck="false"><label class="check"><input type="checkbox" id="forward" checked>Teruskan token akses ke playlist dan potongan video</label></details>
 <div class="actions"><button class="button primary" id="start"><svg><use href="#i-download"/></svg><span id="start-label">Mulai unduh</span></button><button class="button" type="button" id="stop" disabled>■ HENTIKAN</button></div><div id="error" role="alert"></div></form><div id="tools" class="tools"></div></div></section>
-<section class="card" id="card-universal" aria-labelledby="universal-title"><div class="card-head"><div class="section-title"><svg><use href="#i-globe"/></svg><h2 id="universal-title">Downloader Universal: <span id="typewriter-text" class="gradient-text">Semua Medsos</span><span class="cursor">|</span></h2></div><span class="step">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
+<section class="card" id="card-universal" aria-labelledby="universal-title"><div class="card-head"><div class="section-title" style="min-width:0;flex:1;overflow:hidden"><svg style="flex-shrink:0"><use href="#i-globe"/></svg><h2 id="universal-title" style="flex-shrink:0;margin-right:10px">Downloader Universal</h2><div style="flex:1;overflow:hidden;position:relative;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,white 10%,white 90%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,white 10%,white 90%,transparent);padding-top:2px"><div style="display:inline-block;animation:marquee 25s linear infinite;font-size:11px;font-weight:600;color:#ff556b;letter-spacing:0.5px">🚀 DUKUNGAN PLATFORM: Instagram Reels & Carousel &nbsp;•&nbsp; YouTube 4K &nbsp;•&nbsp; TikTok Tanpa Watermark &nbsp;•&nbsp; Twitter / X &nbsp;•&nbsp; Facebook Watch &nbsp;•&nbsp; Pinterest &nbsp;•&nbsp; Spotify &nbsp;•&nbsp; Reddit &nbsp;•&nbsp; LinkedIn &nbsp;•&nbsp; BiliBili &nbsp;•&nbsp; Ratusan Situs Lainnya</div></div></div><span class="step" style="flex-shrink:0">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
 <span class="scan-step-badge">LANGKAH 1: TEMPEL LINK & SCAN</span>
 <label for="u-urls" class="first-label">Alamat URL Video, Instagram Post / Carousel, YouTube, atau Medsos</label>
 <textarea id="u-urls" placeholder="Tempel tautan di sini:&#10;https://www.instagram.com/p/... (Post / Carousel)&#10;https://www.instagram.com/reel/... (Reels)&#10;https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@..." required spellcheck="false" style="height:86px"></textarea>
@@ -556,34 +555,6 @@ if($('hero-nav-stream'))$('hero-nav-stream').onclick=()=>switchSubmenu('stream')
 if($('hero-nav-universal'))$('hero-nav-universal').onclick=()=>switchSubmenu('universal');
 
 // Deteksi otomatis jika pengguna menempelkan link Instagram/YouTube di tab film
-
-const twWords = ["Instagram Reels", "YouTube 4K", "TikTok Tanpa Watermark", "Twitter / X Video", "Facebook Watch", "Instagram Carousel (ZIP)", "Pinterest", "Spotify Podcast", "Reddit Video", "LinkedIn Video", "BiliBili", "Ratusan Situs Lainnya"];
-let twIdx = 0; let twChar = 0; let twDeleting = false;
-function typeWriter() {
-  const currentWord = twWords[twIdx];
-  const el = $('typewriter-text');
-  if(el) {
-    if (twDeleting) {
-      el.textContent = currentWord.substring(0, twChar - 1);
-      twChar--;
-    } else {
-      el.textContent = currentWord.substring(0, twChar + 1);
-      twChar++;
-    }
-    
-    let speed = twDeleting ? 30 : 60;
-    if (!twDeleting && twChar === currentWord.length) {
-      speed = 2000;
-      twDeleting = true;
-    } else if (twDeleting && twChar === 0) {
-      twDeleting = false;
-      twIdx = (twIdx + 1) % twWords.length;
-      speed = 400;
-    }
-    setTimeout(typeWriter, speed);
-  }
-}
-setTimeout(typeWriter, 1000);
 if($('url'))$('url').addEventListener('input',()=>{
 const v=$('url').value.trim().toLowerCase();
 if(v.includes('instagram.com')||v.includes('youtube.com')||v.includes('youtu.be')||v.includes('tiktok.com')){
