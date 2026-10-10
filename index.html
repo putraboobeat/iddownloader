@@ -168,6 +168,16 @@ body[data-running="true"] .status-visual{box-shadow:0 0 35px rgba(243,21,53,0.18
 body[data-running="true"] .laser{display:block}
 @keyframes laser-sweep{to{left:100%}}
 
+/* God-Tier Marquee */
+.marquee-wrapper { width: 100%; overflow: hidden; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.05); padding: 16px 0; display: flex; white-space: nowrap; margin: 30px 0 40px; position: relative; z-index: 10; }
+.marquee-wrapper::before, .marquee-wrapper::after { content: ""; position: absolute; top: 0; width: 150px; height: 100%; z-index: 2; pointer-events: none; }
+.marquee-wrapper::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+.marquee-wrapper::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+.marquee-content { display: flex; gap: 60px; animation: marquee-scroll 30s linear infinite; padding-left: 60px; font-weight: 800; color: #787886; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+.marquee-content span { display: flex; align-items: center; gap: 8px; transition: color 0.3s ease; text-shadow: 0 0 10px rgba(0,0,0,0.3); }
+.marquee-content span:hover { color: #ff3d58; text-shadow: 0 0 15px rgba(255,61,88,0.4); }
+@keyframes marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
 /* Glow Orb */
 .glow-orb { position: absolute; width: 800px; height: 800px; background: radial-gradient(circle, rgba(255,38,62,0.15) 0%, rgba(0,0,0,0) 70%); top: -400px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 0; animation: float-glow 8s ease-in-out infinite alternate; }
 @keyframes float-glow { 0% { opacity: 0.5; transform: translateX(-50%) translateY(0) scale(1); } 100% { opacity: 1; transform: translateX(-50%) translateY(30px) scale(1.1); } }
@@ -286,6 +296,31 @@ body[data-running="true"] .laser{display:block}
 </div>
 </div>
 </section>
+
+<!-- Animated Marquee / Integrations Ticker (Middle placement) -->
+<div class="marquee-wrapper">
+  <div class="marquee-content">
+    <span>YOUTUBE 4K</span>
+    <span>INSTAGRAM REELS & CAROUSEL</span>
+    <span>TIKTOK NO-WATERMARK</span>
+    <span>X / TWITTER VIDEO</span>
+    <span>HLS / M3U8 STREAMING</span>
+    <span>SPOTIFY AUDIO</span>
+    <span>FACEBOOK WATCH</span>
+    <span>PINTEREST</span>
+    
+    <!-- Duplicate for seamless scroll -->
+    <span>YOUTUBE 4K</span>
+    <span>INSTAGRAM REELS & CAROUSEL</span>
+    <span>TIKTOK NO-WATERMARK</span>
+    <span>X / TWITTER VIDEO</span>
+    <span>HLS / M3U8 STREAMING</span>
+    <span>SPOTIFY AUDIO</span>
+    <span>FACEBOOK WATCH</span>
+    <span>PINTEREST</span>
+  </div>
+</div>
+
 <div class="workspace">
 <section class="card" id="download" aria-labelledby="download-title" hidden><div class="card-head"><div class="section-title"><svg><use href="#i-download"/></svg><h2 id="download-title">Unduhan baru</h2></div><span class="step">01 — TEMPEL TAUTAN</span></div><div class="card-body"><form id="form"><div class="tabs" role="group" aria-label="Jenis unduhan"><button type="button" class="tab active" id="video-tab" aria-pressed="true">Video & subtitle</button><button type="button" class="tab" id="subtitle-tab" aria-pressed="false">Subtitle saja</button></div>
 <label for="url" class="first-label">Alamat halaman, video, atau subtitle</label><textarea id="url" placeholder="Tempel alamat halaman film atau tautan video di sini…" required spellcheck="false"></textarea><p class="hint" id="url-hint">Tidak perlu Inspect Element. Chrome akan terbuka untuk mencari video.</p>
@@ -293,7 +328,7 @@ body[data-running="true"] .laser{display:block}
 <div class="subtitle-area" id="subtitle-options"><label class="check"><input type="checkbox" id="subtitles" checked>Unduh juga subtitle yang terdeteksi</label><label for="subtitle_url">Tautan subtitle tambahan <span class="optional">(opsional)</span></label><input id="subtitle_url" placeholder="https://…/subtitle.vtt" spellcheck="false"><p class="hint">Aktifkan subtitle di pemutar agar terdeteksi. VTT otomatis diubah ke SRT (UTF-8) dan disimpan di folder video.</p></div>
 <details><summary>Pengaturan tambahan</summary><div id="folder-section" style="display:none"><label for="folder">Folder utama penyimpanan</label><div class="folder"><input id="folder" value="~/Downloads"><button class="button" type="button" id="choose"><svg><use href="#i-folder"/></svg>Pilih folder</button></div><p class="hint">Folder sesuai nama film dibuat otomatis. Video dan subtitle utama memakai nama yang sama: Nama Film/Nama Film.mp4 dan Nama Film.srt.</p></div><label for="mode">Jenis tautan</label><select id="mode"><option value="auto">Deteksi otomatis</option><option value="page">Halaman film (cari melalui Chrome)</option><option value="direct">Tautan video / playlist langsung</option><option value="subtitle">Subtitle saja (VTT/SRT)</option></select><label for="referer">Alamat halaman asal <span class="optional">(opsional)</span></label><input id="referer" placeholder="Alamat situs tempat video diputar" spellcheck="false"><label class="check"><input type="checkbox" id="forward" checked>Teruskan token akses ke playlist dan potongan video</label></details>
 <div class="actions"><button class="button primary" id="start"><svg><use href="#i-download"/></svg><span id="start-label">Mulai unduh</span></button><button class="button" type="button" id="stop" disabled>■ HENTIKAN</button></div><div id="error" role="alert"></div></form><div id="tools" class="tools"></div></div></section>
-<section class="card" id="card-universal" aria-labelledby="universal-title"><div class="card-head"><div class="section-title" style="min-width:0;flex:1;overflow:hidden"><svg style="flex-shrink:0"><use href="#i-globe"/></svg><h2 id="universal-title" style="flex-shrink:0;margin-right:10px">Downloader Universal</h2><div style="flex:1;overflow:hidden;position:relative;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,white 10%,white 90%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,white 10%,white 90%,transparent);padding-top:2px"><div style="display:inline-block;animation:marquee 25s linear infinite;font-size:11px;font-weight:600;color:#ff556b;letter-spacing:0.5px">DUKUNGAN PLATFORM: YouTube 4K &nbsp;•&nbsp; Instagram Reels &amp; Carousel &nbsp;•&nbsp; TikTok Tanpa Watermark &nbsp;•&nbsp; X / Twitter Video &nbsp;•&nbsp; HLS / M3U8 Streaming &nbsp;•&nbsp; Facebook Watch &nbsp;•&nbsp; Pinterest &nbsp;•&nbsp; Spotify &nbsp;•&nbsp; Reddit &nbsp;•&nbsp; LinkedIn &nbsp;•&nbsp; BiliBili &nbsp;•&nbsp; Ratusan Situs Lainnya</div></div></div><span class="step" style="flex-shrink:0">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
+<section class="card" id="card-universal" aria-labelledby="universal-title"><div class="card-head"><div class="section-title"><svg style="flex-shrink:0"><use href="#i-globe"/></svg><h2 id="universal-title" style="flex-shrink:0">Downloader Universal</h2></div><span class="step" style="flex-shrink:0">MODE SERBAGUNA</span></div><div class="card-body"><form id="form-universal">
 <span class="scan-step-badge">LANGKAH 1: TEMPEL LINK & SCAN</span>
 <label for="u-urls" class="first-label">Alamat URL Video, Instagram Post / Carousel, YouTube, atau Medsos</label>
 <textarea id="u-urls" placeholder="Tempel tautan di sini:&#10;https://www.instagram.com/p/... (Post / Carousel)&#10;https://www.instagram.com/reel/... (Reels)&#10;https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@..." required spellcheck="false" style="height:86px"></textarea>
