@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 class Retention:
-    def __init__(self, root, seconds=3600, log=lambda message: None):
+    def __init__(self, root, seconds=7200, log=lambda message: None):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.seconds = seconds

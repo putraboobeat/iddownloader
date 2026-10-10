@@ -236,8 +236,35 @@ class DownloadEndpointTests(unittest.TestCase):
             self.assertIn('*00:00:10-00:01:30', cmd)
             self.assertIn('--add-header', cmd)
             self.assertIn('Referer:https://www.instagram.com/', cmd)
+            self.assertIn('--yes-playlist', cmd)
+            self.assertIn('--write-thumbnail', cmd)
+
+    def test_ensure_job_zip_and_get_job_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            # 1 single file should not trigger zip
+            (folder / 'Slide_1.jpg').write_bytes(b'image1')
+            zip_res = app.ensure_job_zip(folder, 'TestJob')
+            self.assertIsNone(zip_res)
+            files = app.get_job_files(folder, 'job-test')
+            self.assertEqual(len(files), 1)
+            self.assertFalse(files[0]['is_zip'])
+
+            # 2 files should trigger zip creation
+            (folder / 'Slide_2.mp4').write_bytes(b'video2')
+            zip_res = app.ensure_job_zip(folder, 'TestJob')
+            self.assertIsNotNone(zip_res)
+            self.assertTrue(zip_res.exists())
+            self.assertEqual(zip_res.name, 'TestJob.zip')
+
+            # Verify get_job_files places the .zip at index 0
+            all_files = app.get_job_files(folder, 'job-test')
+            self.assertEqual(len(all_files), 3) # TestJob.zip, Slide_1.jpg, Slide_2.mp4
+            self.assertEqual(all_files[0]['name'], 'TestJob.zip')
+            self.assertTrue(all_files[0]['is_zip'])
 
 
 if __name__ == '__main__':
     unittest.main()
+
 

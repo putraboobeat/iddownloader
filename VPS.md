@@ -15,10 +15,10 @@ Folder data harus bisa ditulis oleh pengguna yang menjalankan aplikasi. Gunakan 
 ## Penghapusan otomatis
 
 - Hanya folder pekerjaan baru di folder data VPS yang dikelola. Nama video dan subtitle tetap sama, dengan ekstensi berbeda.
-- Satu jam dihitung setelah pekerjaan selesai, gagal, atau dihentikan. File parsial juga dibersihkan.
-- Pengecekan setiap 15 detik: penghapusan normal terjadi antara 1 jam dan 1 jam 15 detik.
-- Unduhan yang masih aktif tidak dihapus, sehingga bisa menggunakan disk lebih dari satu jam.
-- Jadwal tersimpan di `.expiry.json` dalam folder pekerjaan. Saat aplikasi restart, pekerjaan yang terputus menggunakan tenggat awal pembuatan + 1 jam; yang sudah lewat tenggat dibersihkan.
+- Dua jam dihitung setelah pekerjaan selesai, gagal, atau dihentikan. File parsial juga dibersihkan.
+- Pengecekan setiap 15 detik: penghapusan normal terjadi antara 2 jam dan 2 jam 15 detik.
+- Unduhan yang masih aktif tidak dihapus, sehingga bisa menggunakan disk lebih dari dua jam.
+- Jadwal tersimpan di `.expiry.json` dalam folder pekerjaan. Saat aplikasi restart, pekerjaan yang terputus menggunakan tenggat awal pembuatan + 2 jam; yang sudah lewat tenggat dibersihkan.
 - Jika aplikasi/VPS mati, pembersihan baru berjalan saat aplikasi hidup kembali. Jika penghapusan gagal karena izin, jadwal dipertahankan dan dicoba kembali.
 - File lama di luar folder pekerjaan tidak ikut dihapus. Mode lokal tanpa `--vps` tidak menghapus hasil otomatis.
 - Retensi bukan kuota disk: gunakan volume dengan kuota atau pantau ruang kosong untuk unduhan besar.
@@ -94,5 +94,5 @@ pm2 restart iddownloader   # jika menggunakan PM2
 
 - Ekstensi Chrome Companion tetap terhubung untuk streaming film web.
 - Aplikasi memproses satu antrean unduhan aktif dalam satu waktu.
-- File di VPS otomatis dibersihkan dan dihapus permanen setelah 1 jam untuk menghemat kapasitas disk server.
+- File di VPS otomatis dibersihkan dan dihapus permanen setelah 2 jam untuk menghemat kapasitas disk server.
 

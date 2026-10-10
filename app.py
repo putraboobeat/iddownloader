@@ -21,6 +21,7 @@ from urllib.parse import urlsplit, unquote, quote
 from detect_video import discover
 from subtitles import save_subtitle
 from retention import Retention
+import zipfile
 
 os.environ['PATH'] = os.pathsep.join([os.environ.get('PATH', ''), '/opt/homebrew/bin', '/usr/local/bin', str(Path.home() / '.local/bin')])
 TOKEN = secrets.token_urlsafe(32)
@@ -29,11 +30,39 @@ STATE = {'running': False, 'status': 'Siap mengunduh', 'percent': 0, 'logs': [],
 PROCESS = None
 COOKIES_PATH = None  # Path ke file cookies.txt untuk Instagram/TikTok/YouTube
 
+def ensure_job_zip(folder_path, job_name=None):
+    folder = Path(folder_path).resolve()
+    if not folder.is_dir():
+        return None
+    valid_files = []
+    for p in folder.iterdir():
+        if p.is_file() and not p.name.startswith('.'):
+            if p.name.endswith(('.part', '.ytdl', '.temp', '.txt', '.zip')):
+                continue
+            if re.search(r'\.f[0-9a-zA-Z_-]+\.(mp4|m4a|webm|mkv)$', p.name):
+                continue
+            valid_files.append(p)
+    if len(valid_files) >= 2:
+        name = (job_name or folder.name).strip()
+        if name.startswith('job-') and '-' in name[4:]:
+            name = name.split('-', 2)[-1]
+        clean_zip_name = re.sub(r'[^\w .-]', '_', name).strip(' .') or 'Semua_File'
+        zip_path = folder / f'{clean_zip_name}.zip'
+        try:
+            with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zf:
+                for vf in sorted(valid_files, key=lambda x: x.name):
+                    zf.write(vf, arcname=vf.name)
+            return zip_path
+        except Exception as exc:
+            add_log(f'Peringatan paket zip: {exc}')
+    return None
+
 def get_job_files(folder_path, job_id=''):
     folder = Path(folder_path).resolve()
     if not folder.exists() or not folder.is_dir():
         return []
     results = []
+    zip_items = []
     for p in sorted(folder.iterdir()):
         if p.is_file() and not p.name.startswith('.'):
             # Exclude incomplete temporary files or unmerged format fragments (e.g. .part, .ytdl, .f1242.mp4, batch files)
@@ -43,12 +72,17 @@ def get_job_files(folder_path, job_id=''):
                 url = f'/download/{quote(job_id)}/{quote(p.name)}'
             else:
                 url = f'/download/local/{quote(p.name)}'
-            results.append({
+            item = {
                 'name': p.name,
                 'size': p.stat().st_size,
-                'url': url
-            })
-    return results
+                'url': url,
+                'is_zip': p.name.endswith('.zip')
+            }
+            if p.name.endswith('.zip'):
+                zip_items.append(item)
+            else:
+                results.append(item)
+    return zip_items + results
 
 # Retention is enabled only in VPS mode, inside its dedicated output root.
 RETENTION = None
@@ -169,6 +203,8 @@ def build_ytdlp_command(data):
         cmd += ['--add-header', 'Referer:https://www.instagram.com/']
         cmd += ['--add-header', 'Sec-Fetch-Site:same-origin']
         cmd += ['--add-header', 'Sec-Fetch-Mode:cors']
+        cmd += ['--yes-playlist']
+        cmd += ['--write-thumbnail']
 
     # Tambahkan sleep antar request jika batch unduhan atau media sosial
     if len(parsed_urls) > 1 or is_instagram:
@@ -201,6 +237,8 @@ def build_ytdlp_command(data):
             '360': 'bv*[height<=360]+ba/b[height<=360]',
         }
         fmt = res_map.get(res, 'bv*+ba/b')
+        if is_instagram:
+            fmt += '/b/best'
         cmd += ['-f', fmt]
         vid_fmt = data.get('video_format', 'mp4')
         if vid_fmt in ('mp4', 'mkv', 'webm'):
@@ -253,9 +291,9 @@ def build_ytdlp_command(data):
         raise ValueError('Masukkan minimal satu tautan URL.')
 
     if len(urls) == 1 and clean_name and clean_name != 'Video':
-        cmd += ['-o', f'{clean_name}.%(ext)s']
+        cmd += ['-o', f'%(playlist_index&{{}} - |)s{clean_name}.%(ext)s']
     else:
-        cmd += ['-o', '%(title)s [%(id)s].%(ext)s']
+        cmd += ['-o', '%(playlist_index&{} - |)s%(title)s [%(id)s].%(ext)s']
 
     if data.get('custom_args'):
         extra = shlex.split(str(data['custom_args']))
@@ -317,6 +355,7 @@ def run_job(data):
                         os.unlink(batch_file)
                     except OSError:
                         pass
+                ensure_job_zip(folder, data.get('name') or folder.name)
             return
         subtitle_only = data.get('mode') == 'subtitle' or urlsplit(data['url']).path.lower().endswith(('.vtt', '.srt'))
         direct = urlsplit(data['url']).path.lower().endswith(('.mp4', '.webm', '.m3u8', '.mpd', '.json'))
@@ -348,7 +387,7 @@ def run_job(data):
             status('Mengunduh subtitle…')
             saved = save_subtitle(dict(url=data['url'], referer=data.get('referer')), folder, name, cancelled)
             add_log('Subtitle: ' + str(saved))
-            status('Selesai — subtitle tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 1 jam).' if RETENTION else '.'))
+            status('Selesai — subtitle tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 2 jam).' if RETENTION else '.'))
             with LOCK:
                 STATE['percent'] = 100
             return
@@ -407,6 +446,7 @@ def run_job(data):
         status('Pencarian atau unduhan gagal. Lihat detail proses.')
     finally:
         if folder.exists():
+            ensure_job_zip(folder, data.get('name') or folder.name)
             media_files = get_job_files(folder, managed_folder.name if managed_folder else '')
         else:
             media_files = []
@@ -474,7 +514,7 @@ def run_download(cmd):
             if STATE['cancelled']:
                 STATE['status'] = 'Dihentikan. File sementara disimpan untuk melanjutkan.'
             elif code == 0:
-                STATE['status'] = 'Selesai — file tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 1 jam).' if RETENTION else '.')
+                STATE['status'] = 'Selesai — file tersimpan di folder tujuan' + (' (akan dihapus otomatis dalam 2 jam).' if RETENTION else '.')
                 STATE['percent'] = 100
             else:
                 STATE['status'] = 'Unduhan gagal. Lihat detail di bawah.'
@@ -557,7 +597,7 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 snapshot = dict(STATE)
             snapshot['vps'] = bool(VPS_ROOT)
-            snapshot['retention_seconds'] = 3600 if VPS_ROOT else 0
+            snapshot['retention_seconds'] = 7200 if VPS_ROOT else 0
             snapshot['tools'] = {'yt': bool(downloader()), 'ffmpeg': bool(shutil.which('ffmpeg'))}
             self.send(snapshot)
         elif self.path == '/cookies-status' and self.authorized():
@@ -591,33 +631,70 @@ class Handler(BaseHTTPRequestHandler):
             target_url = clean_url((qs.get('url') or [''])[0])
             if not target_url:
                 return self.send({'error': 'URL tidak valid'}, 400)
-            cmd = [downloader() or 'yt-dlp', '--dump-single-json', '--no-playlist', '--socket-timeout', '10']
+            cmd = [downloader() or 'yt-dlp', '--dump-single-json', '--socket-timeout', '15']
+            cmd += ['--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36']
+            if 'instagram.com' in target_url.lower():
+                cmd += ['--add-header', 'Referer:https://www.instagram.com/']
+                cmd += ['--add-header', 'Sec-Fetch-Site:same-origin']
+                cmd += ['--add-header', 'Sec-Fetch-Mode:cors']
             if COOKIES_PATH and Path(COOKIES_PATH).is_file():
                 cmd += ['--cookies', str(COOKIES_PATH)]
             elif not VPS_ROOT and sys.platform in ('darwin', 'win32') and 'instagram.com' in target_url:
                 cmd += ['--cookies-from-browser', 'chrome']
             cmd.append(target_url)
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
                 if proc.returncode == 0 and proc.stdout:
                     info = json.loads(proc.stdout)
+                    entries = info.get('entries') or []
                     res_set = set()
-                    for f in info.get('formats', []):
-                        h = f.get('height')
-                        if h and h not in res_set:
-                            res_set.add(h)
+                    has_video = False
+                    has_images = False
+                    if entries:
+                        for entry in entries:
+                            entry_fmts = entry.get('formats') or []
+                            for f in entry_fmts:
+                                h = f.get('height')
+                                if h and h not in res_set:
+                                    res_set.add(h)
+                                    has_video = True
+                            if entry.get('thumbnails') or not entry_fmts:
+                                has_images = True
+                    else:
+                        for f in info.get('formats', []):
+                            h = f.get('height')
+                            if h and h not in res_set:
+                                res_set.add(h)
+                                has_video = True
+
+                    thumb = info.get('thumbnail')
+                    if not thumb and entries:
+                        thumb = entries[0].get('thumbnail')
+
+                    is_ig = 'instagram.com' in target_url.lower()
+                    is_carousel = bool(entries and len(entries) > 1)
+                    detected_formats = sorted(list(res_set), reverse=True)
+                    if not detected_formats and (has_video or not is_carousel):
+                        detected_formats = [1080, 720, 480]
+
                     result = {
-                        'title': info.get('title') or 'Video',
+                        'title': info.get('title') or ('Instagram Post' if is_ig else 'Media Video'),
                         'duration': info.get('duration_string') or info.get('duration'),
-                        'thumbnail': info.get('thumbnail'),
-                        'uploader': info.get('uploader'),
-                        'formats': sorted(list(res_set), reverse=True)
+                        'thumbnail': thumb,
+                        'uploader': info.get('uploader') or info.get('channel') or info.get('uploader_id'),
+                        'formats': detected_formats,
+                        'is_carousel': is_carousel,
+                        'carousel_count': len(entries) if entries else 0,
+                        'is_instagram': is_ig,
+                        'has_video': has_video or not is_carousel,
+                        'has_images': has_images or is_carousel,
+                        'has_audio': True
                     }
                     self.send({'ok': True, 'info': result})
                 else:
                     self.send({'error': proc.stderr[:300] if proc.stderr else 'Gagal menganalisis URL.'}, 400)
             except subprocess.TimeoutExpired:
-                self.send({'error': 'Waktu analisis habis (timeout 15s).'}, 408)
+                self.send({'error': 'Waktu analisis habis (timeout 20s).'}, 408)
             except Exception as exc:
                 self.send({'error': str(exc)}, 500)
         elif self.path.startswith('/download/') or self.path.startswith('/stream/'):
@@ -846,7 +923,7 @@ def main():
     args = parser.parse_args()
     if args.vps:
         VPS_ROOT = Path(args.download_dir).expanduser().resolve()
-        RETENTION = Retention(VPS_ROOT, seconds=3600, log=add_log)
+        RETENTION = Retention(VPS_ROOT, seconds=7200, log=add_log)
         STATE['folder'] = str(VPS_ROOT)
         def cleanup_worker():
             while True:
@@ -873,7 +950,7 @@ def main():
     url = 'http://127.0.0.1:' + str(server.server_port)
     print('Video Downloader: ' + url, flush=True)
     if args.vps:
-        print(f'Mode VPS aktif (Port: {server.server_port}). File unduhan akan dihapus otomatis dalam 1 jam.', flush=True)
+        print(f'Mode VPS aktif (Port: {server.server_port}). File unduhan akan dihapus otomatis dalam 2 jam.', flush=True)
     print('Biarkan Terminal terbuka. Tekan Control+C untuk menutup program.', flush=True)
     if not args.no_browser and not args.vps:
         webbrowser.open(url)

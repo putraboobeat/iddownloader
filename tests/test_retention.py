@@ -8,7 +8,7 @@ class RetentionTests(unittest.TestCase):
     def test_active_then_finished_deadline_and_restart(self):
         with tempfile.TemporaryDirectory() as tmp:
             manager = Retention(tmp)
-            self.assertEqual(manager.seconds, 3600)
+            self.assertEqual(manager.seconds, 7200)
             job = manager.create('Film')
             (job / 'Film.mp4').write_text('sample')
             manager.sweep(now=10**12)
