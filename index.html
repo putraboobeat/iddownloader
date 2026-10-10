@@ -258,6 +258,8 @@ body[data-running="true"] .laser{display:block}
 <div id="inspect-type-tag" style="display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#2b121c;color:#ff6b82;border:1px solid #661e2f"></div>
 </div>
 </div>
+</div>
+<div id="u-bulk-gallery" hidden style="margin-top:14px;border-top:1px solid #2f1722;padding-top:10px"></div>
 
 <div style="margin-top:16px;border-top:1px solid #2f1722;padding-top:14px">
 <label style="font-size:11px;color:#bbb;margin-top:0">FORMAT PENYIMPANAN YANG DIINGINKAN:</label>
@@ -540,6 +542,31 @@ fWrap.appendChild(chip);
 if($('u-resolution'))$('u-resolution').value=String(info.formats[0]);
 }
 updateStartLabel();
+
+const validLines = lines.map(l=>l.trim()).filter(l=>l);
+const gallery = $('u-bulk-gallery');
+if(validLines.length > 1 && gallery) {
+  gallery.hidden = false;
+  gallery.innerHTML = '<label style="font-size:11px;color:#bbb;margin-top:4px;display:block">🔗 +'+(validLines.length-1)+' LINK LAINNYA (BULK DOWNLOAD)</label><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px" id="u-bulk-list"></div>';
+  const list = $('u-bulk-list');
+  for(let i=1; i<Math.min(validLines.length, 10); i++){
+    const u = validLines[i];
+    const cardId = 'bulk-card-'+i;
+    list.innerHTML += '<div id="'+cardId+'" style="width:100px;flex-shrink:0;background:#201419;border-radius:8px;padding:6px;border:1px solid #4a1c27;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:86px;height:56px;background:#111;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden"><span style="font-size:18px">⏳</span></div><div style="font-size:9px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center">Memuat...</div></div>';
+    api('/inspect?url='+encodeURIComponent(u)).then(r => {
+      const card = $(cardId);
+      if(!card) return;
+      if(r.ok && r.info){
+        card.innerHTML = (r.info.thumbnail ? '<img src="'+r.info.thumbnail+'" style="width:86px;height:56px;border-radius:6px;object-fit:cover;background:#111" onerror="this.style.display=\'none\'">' : '<div style="width:86px;height:56px;background:#111;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#444">N/A</div>') + '<div style="font-size:9px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center" title="'+(r.info.title||u)+'">'+(r.info.title||'Video '+i)+'</div>';
+      } else {
+        card.innerHTML = '<div style="width:86px;height:56px;background:#111;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#ff4444;font-size:18px">⚠️</div><div style="font-size:9px;color:#ff4444;text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis">Gagal</div>';
+      }
+    }).catch(()=>{});
+  }
+} else if (gallery) {
+  gallery.hidden = true;
+}
+
 }
 }catch(err){$('u-error').textContent='Gagal menganalisis tautan: '+err.message;}
 finally{$('u-inspect-btn').disabled=false;$('u-inspect-btn').querySelector('span').textContent='🔍 1. Scan & Analisis Pilihan Format';}
