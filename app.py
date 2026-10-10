@@ -658,14 +658,23 @@ class Handler(BaseHTTPRequestHandler):
             cmd.append(target_url)
             try:
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
-                if proc.returncode == 0 and proc.stdout:
-                    info = json.loads(proc.stdout)
+                info = None
+                if proc.stdout:
+                    try:
+                        info = json.loads(proc.stdout)
+                    except json.JSONDecodeError:
+                        pass
+                
+                if (proc.returncode == 0 or info) and info:
                     entries = info.get('entries') or []
                     res_set = set()
                     has_video = False
                     has_images = False
                     if entries:
                         for entry in entries:
+                            if not entry:
+                                has_images = True
+                                continue
                             entry_fmts = entry.get('formats') or []
                             for f in entry_fmts:
                                 h = f.get('height')
@@ -683,7 +692,9 @@ class Handler(BaseHTTPRequestHandler):
 
                     thumb = info.get('thumbnail')
                     if not thumb and entries:
-                        thumb = entries[0].get('thumbnail')
+                        first_valid = next((e for e in entries if e), None)
+                        if first_valid:
+                            thumb = first_valid.get('thumbnail')
 
                     is_ig = 'instagram.com' in target_url.lower()
                     is_carousel = bool(entries and len(entries) > 1)
