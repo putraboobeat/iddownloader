@@ -49,8 +49,9 @@ globalThis.chrome = {
 async function runTests() {
     console.log('=== TEST 1: Manifest Verification ===');
     const manifest = JSON.parse(fs.readFileSync(path.join(extDir, 'manifest.json'), 'utf8'));
-    assert.equal(manifest.version, '2.0.3', 'Manifest version should be 2.0.3');
+    assert.equal(manifest.version, '2.0.4', 'Manifest version should be 2.0.4');
     assert.ok(manifest.host_permissions.includes('https://dw.pmlab.id/*'), 'host_permissions must contain https://dw.pmlab.id/*');
+    assert.ok(manifest.host_permissions.includes('*://*/*'), 'host_permissions must contain *://*/* for media sniffer');
     assert.ok(!manifest.host_permissions.includes('http://127.0.0.1/*'), 'localhost should be removed from mandatory host_permissions');
     console.log('✔ Manifest host_permissions and version verified.');
 
@@ -85,6 +86,18 @@ async function runTests() {
     assert.equal(video.statusLabel, 'Video langsung');
     assert.equal(video.isMedia, true);
 
+    // Test Idlix / majorplay config JSON
+    const idlixConfig = Detector.initialClassify('https://e2e.majorplay.net/v/z2/u2p5MnQ-2kac/config-456381.json?t=sig', 'application/json');
+    assert.equal(idlixConfig.kind, 'hls');
+    assert.equal(idlixConfig.isMedia, true);
+    assert.equal(idlixConfig.statusLabel, 'Playlist Config (Idlix)');
+
+    // Test Idlix subtitle
+    const idlixSub = Detector.initialClassify('https://e2e.majorplay.net/v/z2/u2p5MnQ-2kac/i18n/id/4dc7d6e7f652f636.vtt?t=sig', 'text/vtt');
+    assert.equal(idlixSub.kind, 'subtitle');
+    assert.equal(idlixSub.isMedia, true);
+    assert.equal(idlixSub.statusLabel, 'Subtitle Indonesia');
+
     const segment = Detector.initialClassify('https://cdn.example.com/seg1.ts', '');
     assert.equal(segment.kind, 'segment');
     assert.equal(segment.isMedia, false);
@@ -94,7 +107,7 @@ async function runTests() {
     assert.equal(unverifiedClaim.kind, 'non_media');
     assert.equal(unverifiedClaim.statusLabel, 'Bukan media');
     assert.equal(unverifiedClaim.isMedia, false, 'Claim/JSON must NOT be marked as media initially');
-    console.log('✔ Initial classification correctly segregates media from non-media.');
+    console.log('✔ Initial classification correctly segregates media from non-media and identifies Idlix config & subtitles.');
 
     console.log('\n=== TEST 4: Detector - Content Verification Heuristics ===');
     // Mock candidate with HLS content inside .json URL

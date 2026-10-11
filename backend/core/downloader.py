@@ -24,6 +24,7 @@ def build_ytdlp_command(data: dict, folder: Path, cookies_path: str = None) -> l
         '--continue', '--no-abort-on-unavailable-fragments',
         '--retries', '20', '--fragment-retries', '20', '--file-access-retries', '5',
         '--extractor-retries', '10',
+        '--extractor-args', 'generic:variant_query;fragment_query',
         '--retry-sleep', 'http:3', '--retry-sleep', 'fragment:3',
         '--socket-timeout', '30', '--no-update',
         '-P', str(folder)
@@ -60,7 +61,15 @@ def build_ytdlp_command(data: dict, folder: Path, cookies_path: str = None) -> l
         cmd += ['--add-header', 'Referer:https://www.instagram.com/']
         cmd += ['--yes-playlist', '--write-thumbnail']
     elif data.get('referer'):
-        cmd += ['--add-header', f"Referer:{data.get('referer')}"]
+        ref = str(data.get('referer')).strip()
+        cmd += ['--add-header', f"Referer:{ref}"]
+        from urllib.parse import urlsplit
+        try:
+            parsed_ref = urlsplit(ref)
+            if parsed_ref.scheme and parsed_ref.netloc:
+                cmd += ['--add-header', f"Origin:{parsed_ref.scheme}://{parsed_ref.netloc}"]
+        except Exception:
+            pass
         
     # Batch delays
     if len(parsed_urls) > 1 or is_instagram:
@@ -109,12 +118,12 @@ def build_ytdlp_command(data: dict, folder: Path, cookies_path: str = None) -> l
             cmd += ['--embed-thumbnail']
     elif preset != 'subtitle_only':
         res = str(data.get('resolution', 'best'))
-        # Updated res_map to be more compatible
+        # Resilient format map with fallback for single-track HLS / progressive streams
         res_map = {
-            'best': 'bv*+ba/b',
-            '1080': 'bv*[height<=1080]+ba/b[height<=1080]',
-            '720': 'bv*[height<=720]+ba/b[height<=720]',
-            '480': 'bv*[height<=480]+ba/b[height<=480]'
+            'best': 'bv*+ba/b/best',
+            '1080': 'bv*[height<=1080]+ba/b[height<=1080]/b[height<=1080]/best',
+            '720': 'bv*[height<=720]+ba/b[height<=720]/b[height<=720]/best',
+            '480': 'bv*[height<=480]+ba/b[height<=480]/b[height<=480]/best'
         }
         cmd += ['-f', res_map.get(res, res_map['best'])]
         fmt = data.get('video_format', 'mp4')

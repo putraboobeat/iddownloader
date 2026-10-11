@@ -100,7 +100,7 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       OMNI<span>FETCH</span>
     </h1>
-    <span class="badge">v2.0.3</span>
+    <span class="badge">v2.0.4</span>
   </header>
 
   <!-- DIRECT DOWNLOAD CARD (For YT, IG, TT, Twitter) -->
@@ -118,9 +118,15 @@
     
     <label for="media">Sumber Media Terdeteksi</label>
     <select id="media"><option value="">Menunggu video diputar...</option></select>
+    <div style="margin-bottom: 10px;">
+      <button type="button" class="btn" id="btn-copy-media" style="width:100%; padding:6px 8px; font-size:11px; background:#1e1015; border-color:#521927;">📋 Salin Link Playlist Video</button>
+    </div>
     
     <label for="subtitle">Subtitle Tambahan</label>
     <select id="subtitle"><option value="">Tanpa subtitle tambahan</option></select>
+    <div style="margin-bottom: 10px;">
+      <button type="button" class="btn" id="btn-copy-sub" style="width:100%; padding:6px 8px; font-size:11px; background:#1e1015; border-color:#521927;">📋 Salin Link Subtitle</button>
+    </div>
     
     <div class="row-btns">
       <button class="btn primary" id="send">⬇ Kirim Playlist ke Server</button>

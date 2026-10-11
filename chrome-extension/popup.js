@@ -248,14 +248,67 @@ function sendToBackground(payload, btnElement, statusContainerId, successText = 
             setStatus('sniffer-status', 'loading', '⚠️ Silakan pilih subtitle terlebih dahulu.');
             return;
         }
+        const selectedSub = items.find(x => x.url === subtitleUrl);
+        const referer = selectedSub?.referer || (currentTab && currentTab.url ? currentTab.url : '');
+        const customName = $('name')?.value?.trim() || '';
+
+        const payload = { 
+            urls: subtitleUrl, 
+            mode: 'subtitle', 
+            media_type: 'video', 
+            resolution: 'best',
+            referer: referer
+        };
+        if (customName) payload.name = customName;
+
         sendToBackground(
-            { urls: subtitleUrl, mode: 'subtitle', media_type: 'video', resolution: 'best' },
+            payload,
             $('send-sub'),
             'sniffer-status',
             '✅ Terkirim',
             'Subtitle Saja'
         );
     };
+
+    if ($('btn-copy-media')) {
+        $('btn-copy-media').onclick = async () => {
+            const val = $('media').value;
+            if (!val) {
+                setStatus('sniffer-status', 'loading', '⚠️ Belum ada sumber video/playlist yang dipilih.');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(val);
+                const btn = $('btn-copy-media');
+                const orig = btn.textContent;
+                btn.textContent = '✅ Link Playlist Disalin!';
+                setStatus('sniffer-status', 'success', '📋 Link playlist video berhasil disalin ke clipboard.');
+                setTimeout(() => { btn.textContent = orig; }, 2500);
+            } catch (err) {
+                setStatus('sniffer-status', 'error', '❌ Gagal menyalin: ' + err.message);
+            }
+        };
+    }
+
+    if ($('btn-copy-sub')) {
+        $('btn-copy-sub').onclick = async () => {
+            const val = $('subtitle').value;
+            if (!val) {
+                setStatus('sniffer-status', 'loading', '⚠️ Belum ada subtitle yang dipilih.');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(val);
+                const btn = $('btn-copy-sub');
+                const orig = btn.textContent;
+                btn.textContent = '✅ Link Subtitle Disalin!';
+                setStatus('sniffer-status', 'success', '📋 Link subtitle berhasil disalin ke clipboard.');
+                setTimeout(() => { btn.textContent = orig; }, 2500);
+            } catch (err) {
+                setStatus('sniffer-status', 'error', '❌ Gagal menyalin: ' + err.message);
+            }
+        };
+    }
     
     $('clear').onclick = () => {
         chrome.runtime.sendMessage({ type: 'CLEAR_CANDIDATES', tabId: currentTab.id }, () => {
@@ -294,13 +347,14 @@ $('send').onclick = () => {
     const subtitleUrl = $('subtitle').value;
     const actualDownloadUrl = selected.extractedMediaUrl || selected.url;
     const customName = $('name')?.value?.trim() || '';
+    const referer = selected.referer || (currentTab && currentTab.url ? currentTab.url : '');
 
     const payload = { 
         urls: actualDownloadUrl, 
-        mode: selected.kind === 'hls' ? 'direct' : 'auto', 
+        mode: (selected.kind === 'hls' || selected.kind === 'dash' || selected.kind === 'playlist') ? 'direct' : 'auto', 
         media_type: 'video', 
         resolution: 'best',
-        referer: selected.referer || ''
+        referer: referer
     };
 
     if (customName) {

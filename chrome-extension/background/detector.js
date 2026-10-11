@@ -9,7 +9,15 @@ export class Detector {
             
             // 1. Subtitles
             if (/\.(vtt|srt)$/.test(path) || mime.includes('text/vtt')) {
-                return { kind: 'subtitle', statusLabel: 'Subtitle', isMedia: true, verified: true };
+                let subLabel = 'Subtitle';
+                if (path.includes('/id/') || path.includes('/indonesian') || path.includes('/indonesia')) subLabel = 'Subtitle Indonesia';
+                else if (path.includes('/en/') || path.includes('/english')) subLabel = 'Subtitle Inggris';
+                return { kind: 'subtitle', statusLabel: subLabel, isMedia: true, verified: true };
+            }
+
+            // 1b. Khusus Idlix / Majorplay Player Config (misal config-456381.json)
+            if (/\/config-[^/]+\.json$/.test(path) || (path.includes('config-') && path.endsWith('.json'))) {
+                return { kind: 'hls', statusLabel: 'Playlist Config (Idlix)', isMedia: true, verified: true };
             }
             
             // 2. Format Segment HLS / DASH (Abaikan agar tidak memenuhi daftar)

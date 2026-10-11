@@ -94,6 +94,55 @@ class Job:
             job_manager.save_db()
 
     def run(self):
+        # 1. Penanganan Khusus Pekerjaan Subtitle Saja
+        target_url = self.data.get('urls') or self.data.get('url') or ''
+        if isinstance(target_url, list):
+            target_url = target_url[0] if target_url else ''
+        target_url = str(target_url).strip()
+
+        is_subtitle_mode = self.data.get('mode') == 'subtitle' or any(target_url.lower().split('?')[0].endswith(ext) for ext in ('.vtt', '.srt'))
+
+        if is_subtitle_mode:
+            self.status = "downloading"
+            self.log("Memulai pengunduhan subtitle...")
+            job_manager.save_db()
+            try:
+                from subtitles import save_subtitle
+                sub_name = self.data.get('name') or "Subtitle"
+                saved_path = save_subtitle(
+                    track={'url': target_url, 'referer': self.data.get('referer', '')},
+                    folder=self.folder,
+                    name=sub_name,
+                    cancelled=lambda: self.status == 'cancelled',
+                    cookie_file=config.COOKIES_PATH
+                )
+                self.status = "completed"
+                self.percent = 100.0
+                self.log(f"Subtitle berhasil disimpan: {saved_path.name}")
+                ensure_job_zip(self.folder, sub_name)
+            except Exception as e:
+                self.status = "failed"
+                self.log(f"Gagal mengunduh subtitle: {str(e)}")
+            job_manager.save_db()
+            return
+
+        # 2. Pengunduhan Subtitle Tambahan jika disertakan bersama video
+        if self.data.get('subtitle_url'):
+            try:
+                from subtitles import save_subtitle
+                sub_url = str(self.data['subtitle_url']).strip()
+                self.log(f"Mengunduh subtitle eksternal pendamping...")
+                saved_sub = save_subtitle(
+                    track={'url': sub_url, 'referer': self.data.get('referer', '')},
+                    folder=self.folder,
+                    name=self.data.get('name') or "Subtitle",
+                    cancelled=lambda: self.status == 'cancelled',
+                    cookie_file=config.COOKIES_PATH
+                )
+                self.log(f"Subtitle eksternal tersimpan: {saved_sub.name}")
+            except Exception as sub_err:
+                self.log(f"Peringatan subtitle eksternal: {str(sub_err)}")
+
         max_retries = 2
         retry_count = 0
         
