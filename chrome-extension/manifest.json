@@ -2,6 +2,12 @@
   "manifest_version": 3,
   "name": "OmniFetch Companion",
   "version": "2.1.4",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "omnifetch-companion@dw.pmlab.id",
+      "strict_min_version": "121.0"
+    }
+  },
   "description": "Asisten pintar untuk mengunduh video dari Instagram, YouTube, TikTok, Twitter, dan ribuan situs lainnya.",
   "permissions": [
     "webRequest",

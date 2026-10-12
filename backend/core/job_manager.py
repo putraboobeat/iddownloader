@@ -109,12 +109,13 @@ class Job:
             try:
                 from subtitles import save_subtitle
                 sub_name = self.data.get('name') or "Subtitle"
+                cookie_arg = config.COOKIES_PATH if Path(config.COOKIES_PATH).is_file() else None
                 saved_path = save_subtitle(
                     track={'url': target_url, 'referer': self.data.get('referer', '')},
                     folder=self.folder,
                     name=sub_name,
                     cancelled=lambda: self.status == 'cancelled',
-                    cookie_file=config.COOKIES_PATH
+                    cookie_file=cookie_arg
                 )
                 self.status = "completed"
                 self.percent = 100.0
@@ -132,12 +133,13 @@ class Job:
                 from subtitles import save_subtitle
                 sub_url = str(self.data['subtitle_url']).strip()
                 self.log(f"Mengunduh subtitle eksternal pendamping...")
+                cookie_arg = config.COOKIES_PATH if Path(config.COOKIES_PATH).is_file() else None
                 saved_sub = save_subtitle(
                     track={'url': sub_url, 'referer': self.data.get('referer', '')},
                     folder=self.folder,
                     name=self.data.get('name') or "Subtitle",
                     cancelled=lambda: self.status == 'cancelled',
-                    cookie_file=config.COOKIES_PATH
+                    cookie_file=cookie_arg
                 )
                 self.log(f"Subtitle eksternal tersimpan: {saved_sub.name}")
             except Exception as sub_err:

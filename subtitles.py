@@ -75,9 +75,21 @@ def save_subtitle(track, folder, name, cancelled, cookie_file=None):
         headers.update({k: v for k, v in track.get('headers', {}).items() if k in ('user-agent', 'origin')})
         if track.get('referer'):
             headers['Referer'] = track['referer']
+        else:
+            try:
+                parsed_u = urlsplit(track['url'])
+                if parsed_u.scheme and parsed_u.netloc:
+                    headers['Referer'] = f"{parsed_u.scheme}://{parsed_u.netloc}/"
+                    headers['Origin'] = f"{parsed_u.scheme}://{parsed_u.netloc}"
+            except Exception:
+                pass
+
         jar = MozillaCookieJar()
-        if cookie_file:
-            jar.load(cookie_file, ignore_discard=True, ignore_expires=True)
+        if cookie_file and os.path.isfile(cookie_file):
+            try:
+                jar.load(cookie_file, ignore_discard=True, ignore_expires=True)
+            except Exception:
+                pass
         try:
             with build_opener(HTTPCookieProcessor(jar)).open(Request(track['url'], headers=headers), timeout=15) as response:
                 chunks, size = [], 0
