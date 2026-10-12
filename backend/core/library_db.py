@@ -10,7 +10,7 @@ import re
 import uuid
 import shutil
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from contextlib import contextmanager
 
