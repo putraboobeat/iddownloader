@@ -949,22 +949,24 @@ function renderJobMonitor(job) {
 let dismissedJobId = null;
 
 async function loadJobsState() {
-    chrome.runtime.sendMessage({ type: 'GET_ALL_JOBS' }, (data) => {
-        if (!data || !data.jobs) return;
-        const jobs = Object.values(data.jobs).sort((a, b) => b.createdAt - a.createdAt);
-        
-        // Cari job yang sedang aktif terlebih dahulu
-        const activeJob = jobs.find(j => ['queued', 'downloading', 'validating', 'saving'].includes(j.status)) || jobs[0];
-        if (activeJob) {
-            const isRunning = ['queued', 'downloading', 'validating', 'saving'].includes(activeJob.status);
-            if (isRunning || activeJob.id !== dismissedJobId) {
+    chrome.storage.local.get(['omni_dismissed_jobs'], (stored) => {
+        const dismissedMap = stored?.omni_dismissed_jobs || {};
+        chrome.runtime.sendMessage({ type: 'GET_ALL_JOBS' }, (data) => {
+            if (!data || !data.jobs) return;
+            const jobs = Object.values(data.jobs).sort((a, b) => b.createdAt - a.createdAt);
+            
+            // Prioritas 1: Job yang sedang aktif berjalan di latar belakang
+            const runningJob = jobs.find(j => ['queued', 'downloading', 'validating', 'saving'].includes(j.status));
+            // Prioritas 2: Job terbaru HANYA jika BELUM ditutup/dismissed oleh user
+            const recentJob = jobs.find(j => !j.dismissed && !dismissedMap[j.id] && j.id !== dismissedJobId);
+            const activeJob = runningJob || recentJob;
+
+            if (activeJob) {
                 renderJobMonitor(activeJob);
             } else {
+                currentActiveJobId = null;
                 $('job-monitor-card').style.display = 'none';
             }
-        } else {
-            $('job-monitor-card').style.display = 'none';
-        }
 
         // Render riwayat ke accordion
         const historyContainer = $('history-list');
@@ -1019,18 +1021,30 @@ async function loadJobsState() {
             historyContainer.append(row);
         }
     });
+    });
 }
 
 // Listen to storage changes for live progress updates
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.omni_jobs) {
         const jobs = changes.omni_jobs.newValue || {};
-        if (currentActiveJobId && jobs[currentActiveJobId]) {
-            renderJobMonitor(jobs[currentActiveJobId]);
-        } else {
-            const active = Object.values(jobs).find(j => ['queued', 'downloading', 'validating', 'saving'].includes(j.status));
-            if (active) renderJobMonitor(active);
-        }
+        chrome.storage.local.get(['omni_dismissed_jobs'], (res) => {
+            const dismissedMap = res?.omni_dismissed_jobs || {};
+            if (currentActiveJobId && jobs[currentActiveJobId]) {
+                const cur = jobs[currentActiveJobId];
+                if (!cur.dismissed && !dismissedMap[cur.id] && cur.id !== dismissedJobId) {
+                    renderJobMonitor(cur);
+                } else {
+                    currentActiveJobId = null;
+                    $('job-monitor-card').style.display = 'none';
+                }
+            } else {
+                const active = Object.values(jobs).find(j => ['queued', 'downloading', 'validating', 'saving'].includes(j.status));
+                if (active && !active.dismissed && !dismissedMap[active.id] && active.id !== dismissedJobId) {
+                    renderJobMonitor(active);
+                }
+            }
+        });
     }
 });
 
@@ -1320,8 +1334,20 @@ async function triggerDownload(isForced = false) {
 // === BUTTON EVENT HANDLERS ===
 if ($('btn-dismiss-job')) {
     $('btn-dismiss-job').onclick = () => {
-        dismissedJobId = currentActiveJobId;
+        const jobToDismiss = currentActiveJobId || lastKnownJob?.id;
+        dismissedJobId = jobToDismiss;
+        currentActiveJobId = null;
+        lastKnownJob = null;
         $('job-monitor-card').style.display = 'none';
+
+        if (jobToDismiss) {
+            chrome.runtime.sendMessage({ type: 'DISMISS_JOB', jobId: jobToDismiss });
+            chrome.storage.local.get(['omni_dismissed_jobs'], (res) => {
+                const d = res?.omni_dismissed_jobs || {};
+                d[jobToDismiss] = Date.now();
+                chrome.storage.local.set({ omni_dismissed_jobs: d, omni_active_job_id: null });
+            });
+        }
     };
 }
 

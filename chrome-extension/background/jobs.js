@@ -81,6 +81,30 @@ export class JobManager {
     }
 
     /**
+     * Menutup atau menyembunyikan kartu tugas secara permanen dari UI monitor.
+     */
+    static async dismissJob(jobId) {
+        return await this.withLock(async () => {
+            const data = await chrome.storage.local.get(['omni_jobs', 'omni_active_job_id', 'omni_dismissed_jobs']);
+            const jobs = data.omni_jobs || {};
+            const dismissed = data.omni_dismissed_jobs || {};
+            if (jobId) {
+                dismissed[jobId] = Date.now();
+                if (jobs[jobId]) {
+                    jobs[jobId].dismissed = true;
+                }
+            }
+            const activeJobId = data.omni_active_job_id === jobId ? null : (data.omni_active_job_id || null);
+            await chrome.storage.local.set({
+                omni_jobs: jobs,
+                omni_active_job_id: activeJobId,
+                omni_dismissed_jobs: dismissed
+            });
+            return { ok: true };
+        });
+    }
+
+    /**
      * Mendaftarkan pekerjaan baru dengan mengikat token sesi pengguna secara persisten.
      */
     static async addJob(jobId, payload, title = 'Media', sessionToken = null) {

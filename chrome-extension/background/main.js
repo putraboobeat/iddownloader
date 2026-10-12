@@ -468,6 +468,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.type === 'DISMISS_JOB') {
+        JobManager.dismissJob(message.jobId).then(res => sendResponse(res));
+        return true;
+    }
+
     if (message.type === 'GET_DIAGNOSTIC') {
         (async () => {
             try {
