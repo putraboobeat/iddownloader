@@ -349,8 +349,20 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             return
             
         if not safe_path.exists() or not safe_path.is_file():
-            self.send_error(404, 'File not found')
-            return
+            # Fallback for extension.zip if named differently
+            if path == '/extension.zip':
+                candidates = [
+                    config.BASE_DIR / 'omnifetch-companion-v2.zip',
+                    *sorted(config.BASE_DIR.glob('OmniFetch-Companion-*.zip'), reverse=True)
+                ]
+                for cand in candidates:
+                    if cand.exists() and cand.is_file():
+                        safe_path = cand
+                        break
+
+            if not safe_path.exists() or not safe_path.is_file():
+                self.send_error(404, 'File not found')
+                return
             
         try:
             content = safe_path.read_bytes()
@@ -358,6 +370,8 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             self.send_response(200)
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
+            if safe_path.suffix == '.zip':
+                self.send_header('Content-Disposition', f'attachment; filename="{safe_path.name}"')
             self.end_headers()
             self.wfile.write(content)
         except Exception:
