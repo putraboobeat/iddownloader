@@ -321,13 +321,19 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             
         try:
             content = safe_path.read_bytes()
-            mime = mimetypes.guess_type(str(safe_path))[0] or 'application/octet-stream'
+            if safe_path.name.lower().endswith('.srt'):
+                mime = 'application/x-subrip'
+            elif safe_path.name.lower().endswith('.vtt'):
+                mime = 'text/vtt'
+            else:
+                mime = mimetypes.guess_type(str(safe_path))[0] or 'application/octet-stream'
             self.send_response(200)
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
             
             from urllib.parse import quote
-            disposition = 'inline' if stream else f"attachment; filename*=UTF-8''{quote(filename)}"
+            clean_ascii = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+            disposition = 'inline' if stream else f'attachment; filename="{clean_ascii}"; filename*=UTF-8\'\'{quote(filename)}'
             self.send_header('Content-Disposition', disposition)
             
             self.end_headers()

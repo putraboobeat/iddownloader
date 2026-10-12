@@ -484,7 +484,7 @@ export class JobManager {
                     if (vttText && (vttText.includes('WEBVTT') || vttText.includes('-->'))) {
                         const convertedSrt = convertVttToSrt(vttText);
                         if (convertedSrt && convertedSrt.length > 10) {
-                            downloadUrl = 'data:text/plain;charset=utf-8,' + encodeURIComponent(convertedSrt);
+                            downloadUrl = 'data:application/x-subrip;charset=utf-8,' + encodeURIComponent(convertedSrt);
                             targetFileName = targetFileName.replace(/\.vtt$/i, '.srt');
                             converted = true;
                         } else {

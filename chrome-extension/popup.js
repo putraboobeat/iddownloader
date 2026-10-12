@@ -1145,7 +1145,7 @@ async function triggerDownload(isForced = false) {
                         const rawText = await subRes.text();
                         if (rawText && (rawText.includes('WEBVTT') || rawText.includes('-->') || rawText.includes('[Script Info]'))) {
                             const srtText = convertVttToSrt(rawText) || rawText;
-                            const blob = new Blob([srtText], { type: 'text/plain;charset=utf-8' });
+                            const blob = new Blob([srtText], { type: 'application/x-subrip;charset=utf-8' });
                             const blobUrl = URL.createObjectURL(blob);
                             const cleanTitle = sanitize(mediaTitle || 'Subtitle');
                             const filename = `OmniFetch/${cleanTitle}/${cleanTitle}.srt`;
