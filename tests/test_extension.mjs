@@ -83,12 +83,12 @@ globalThis.chrome = {
 async function runTests() {
     console.log('=== TEST 1: Manifest Verification ===');
     const manifest = JSON.parse(fs.readFileSync(path.join(extDir, 'manifest.json'), 'utf8'));
-    assert.equal(manifest.version, '2.1.3', 'Manifest version should be updated to 2.1.3');
+    assert.equal(manifest.version, '2.1.4', 'Manifest version should be updated to 2.1.4');
     assert.ok(manifest.permissions.includes('downloads'), 'permissions must include downloads API');
     assert.ok(manifest.host_permissions.includes('https://dw.pmlab.id/*'), 'host_permissions must contain https://dw.pmlab.id/*');
     assert.ok(manifest.host_permissions.includes('*://*/*'), 'host_permissions must contain *://*/* for streaming media sniffer');
     assert.ok(!manifest.host_permissions.includes('http://127.0.0.1/*'), 'localhost should be removed from mandatory host_permissions');
-    console.log('✔ Manifest version 2.1.3, downloads permission, and streaming host permissions verified.');
+    console.log('✔ Manifest version 2.1.4, downloads permission, and streaming host permissions verified.');
 
     console.log('\n=== TEST 2: Config, BASE_URL & Auto-Session Token Generation ===');
     const { BASE_URL, Config } = await import(path.join(extDir, 'background/config.js'));
@@ -397,7 +397,43 @@ Baris kedua dengan <b>tebal</b>.`;
     const { jobs: jobsFinished } = await JobManager.getJobs();
     assert.equal(jobsFinished['job-abc-123'].status, 'completed');
     assert.ok(jobsFinished['job-abc-123'].stageLabel.includes('Selesai'), 'Job must be marked completed once saved to computer');
-    console.log('✔ JobManager single-flow lifecycle, path sanitization, and duplicate prevention verified.');
+    console.log('\n=== TEST 8: Streaming / Idlix Movie Title Sanitization ===');
+    const { cleanMovieTitle, getCleanDisplayTitle } = await import(path.join(extDir, 'utils/title.js'));
+
+    // 1. Idlix tab titles
+    assert.equal(
+        cleanMovieTitle('Nonton Film Venom: The Last Dance (2024) Sub Indo | IDLIX'),
+        'Venom: The Last Dance (2024)',
+        'Harus membersihkan Nonton Film, Sub Indo, dan | IDLIX'
+    );
+    assert.equal(
+        cleanMovieTitle('Nonton Arcane: Season 2 Episode 1 Sub Indo - IDLIX Official'),
+        'Arcane: Season 2 Episode 1',
+        'Harus membersihkan Nonton, Sub Indo, dan - IDLIX Official'
+    );
+    assert.equal(
+        cleanMovieTitle('Nonton Film A Quiet Place: Day One (2024) Subtitle Indonesia | LK21'),
+        'A Quiet Place: Day One (2024)',
+        'Harus membersihkan Nonton Film, Subtitle Indonesia, dan | LK21'
+    );
+
+    // 2. getCleanDisplayTitle: Jangan gunakan nama file teknis config-*.json jika tabTitle valid!
+    const idlixCand = { displayTitle: 'config-796335' };
+    const resolvedTitle = getCleanDisplayTitle(idlixCand, 'Nonton Film Venom: The Last Dance (2024) Sub Indo | IDLIX');
+    assert.equal(
+        resolvedTitle,
+        'Venom: The Last Dance (2024)',
+        'Nama file teknis config-*.json tidak boleh mengalahkan judul film dari tab'
+    );
+
+    const hashCand = { displayTitle: 'ff450ba01b0ca2695d.mp4' };
+    assert.equal(
+        getCleanDisplayTitle(hashCand, 'Nonton Film Gladiator II (2024) Sub Indo - IDLIX'),
+        'Gladiator II (2024)',
+        'Hash hex mp4 tidak boleh mengalahkan judul film dari tab'
+    );
+
+    console.log('✔ Idlix / streaming movie title extraction & sanitization verified.');
 
     // Restore fetch
     globalThis.fetch = originalFetch;

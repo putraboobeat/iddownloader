@@ -75,6 +75,24 @@ def build_ytdlp_command(data: dict, folder: Path, cookies_path: str = None) -> l
     if len(parsed_urls) > 1 or is_instagram:
         cmd += ['--sleep-requests', '1.5', '--sleep-interval', '2', '--max-sleep-interval', '5']
         
+    # Output template & clean filename (prevents generic URL tokens like config-*.json in filenames)
+    name = (data.get('name') or '').strip()
+    if name:
+        safe_name = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', name).strip()
+        safe_name = re.sub(r'\.(mp4|mkv|webm|mp3|m4a|json)$', '', safe_name, flags=re.I).strip()
+        if safe_name:
+            if len(parsed_urls) > 1 or is_instagram:
+                cmd += ['-o', f'{safe_name}_%(playlist_index)02d.%(ext)s']
+            else:
+                cmd += ['-o', f'{safe_name}.%(ext)s']
+        else:
+            cmd += ['-o', '%(title)s.%(ext)s']
+    else:
+        if len(parsed_urls) > 1 or is_instagram:
+            cmd += ['-o', '%(playlist_index)02d - %(title)s.%(ext)s']
+        else:
+            cmd += ['-o', '%(title)s.%(ext)s']
+
     # Time limits
     s = str(data.get('start_time', '')).strip()
     e = str(data.get('end_time', '')).strip()

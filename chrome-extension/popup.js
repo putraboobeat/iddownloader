@@ -1,6 +1,7 @@
 import { BASE_URL, Config } from './background/config.js';
 import { Detector } from './background/detector.js';
 import { createZipBlob } from './utils/zip.js';
+import { cleanMovieTitle, getCleanDisplayTitle } from './utils/title.js';
 
 const $ = id => document.getElementById(id);
 let currentTab = null;
@@ -412,15 +413,6 @@ function setupTypePills() {
     });
 }
 
-function getCleanDisplayTitle(item, tabTitle) {
-    const raw = (item?.displayTitle || '').trim();
-    const genericKeywords = ['get', 'stream', 'play', 'video', 'media', 'index', 'playlist', 'master', 'api', 'content', 'manifest'];
-    if (!raw || genericKeywords.includes(raw.toLowerCase()) || raw.length < 3) {
-        return tabTitle || raw || 'Media Video';
-    }
-    return raw;
-}
-
 // === REFRESH DETECTED MEDIA & ACTIVE DOM SCAN ===
 async function refreshCandidates(activeScan = false) {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -635,16 +627,27 @@ async function refreshCandidates(activeScan = false) {
 
                     const bestTitle = getCleanDisplayTitle(best, currentTab?.title);
                     $('media-title').textContent = bestTitle;
+                    if ($('custom-name') && !$('custom-name').value) {
+                        $('custom-name').placeholder = bestTitle;
+                    }
                     $('media-platform-tag').textContent = best.statusLabel || 'Stream';
                 } else if (mediaSelect.options.length > 1) {
                     mediaSelect.selectedIndex = 1;
                     const firstItem = videoCandidates[0];
                     if (firstItem) {
-                        $('media-title').textContent = getCleanDisplayTitle(firstItem, currentTab?.title);
+                        const firstTitle = getCleanDisplayTitle(firstItem, currentTab?.title);
+                        $('media-title').textContent = firstTitle;
+                        if ($('custom-name') && !$('custom-name').value) {
+                            $('custom-name').placeholder = firstTitle;
+                        }
                         $('media-platform-tag').textContent = firstItem.statusLabel || 'Stream';
                     }
                 } else if (currentTab?.title) {
-                    $('media-title').textContent = currentTab.title;
+                    const fallbackTitle = cleanMovieTitle(currentTab.title);
+                    $('media-title').textContent = fallbackTitle;
+                    if ($('custom-name') && !$('custom-name').value) {
+                        $('custom-name').placeholder = fallbackTitle;
+                    }
                 }
             }
 
@@ -1333,7 +1336,11 @@ if ($('media-select')) {
         const val = e.target.value;
         const item = detectedItems.find(x => x.url === val);
         if (item) {
-            $('media-title').textContent = getCleanDisplayTitle(item, currentTab?.title);
+            const cleanTitle = getCleanDisplayTitle(item, currentTab?.title);
+            $('media-title').textContent = cleanTitle;
+            if ($('custom-name') && !$('custom-name').value) {
+                $('custom-name').placeholder = cleanTitle;
+            }
             $('media-platform-tag').textContent = item.statusLabel || 'Stream';
         }
         if (!userExplicitNoSub) {
