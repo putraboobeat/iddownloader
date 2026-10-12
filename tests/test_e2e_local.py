@@ -70,7 +70,7 @@ class TestE2ELocal(unittest.TestCase):
         self.assertEqual(job.status, "failed")
         log_text = "\n".join(job.logs)
         # Should NOT have retried because 404 is considered fatal/unavailable
-        self.assertNotIn("🔄 Memulai ulang percobaan ke-1", log_text)
+        self.assertNotIn("Memulai ulang percobaan ke-1", log_text)
         self.assertIn("URL sudah kedaluwarsa", log_text)
 
 if __name__ == '__main__':

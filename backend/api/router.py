@@ -4,6 +4,7 @@ import shutil
 import re
 import secrets
 import hmac
+import html
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote
@@ -14,6 +15,7 @@ from ..core.storage import get_job_files, read_metadata
 from ..core import config
 from ..core import library_db
 from ..core.jellyfin import jellyfin_client
+from ..core.importer import run_ffprobe
 
 LIBRARY_AUTH_TOKENS = set()
 
@@ -21,11 +23,12 @@ class APIHandler(BaseHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session, X-Library-Auth')
-        # Security headers
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session, X-Library-Auth, Range')
+        self.send_header('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length')
+        # Security headers with media & blob support for video streaming
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
-        self.send_header('Content-Security-Policy', "default-src 'self' 'unsafe-inline' https:; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy', "default-src 'self' 'unsafe-inline' https: data: blob:; media-src 'self' blob: https: data:; img-src 'self' https: data: blob:; frame-ancestors 'none'")
         super().end_headers()
 
     def is_library_authorized(self) -> bool:
@@ -33,7 +36,7 @@ class APIHandler(BaseHTTPRequestHandler):
         if not token:
             parsed = urlparse(self.path)
             qs = parse_qs(parsed.query)
-            token = (qs.get('library_auth') or [''])[0].strip()
+            token = (qs.get('library_auth') or qs.get('auth') or [''])[0].strip()
         if not token:
             return False
         if token in LIBRARY_AUTH_TOKENS:
@@ -46,6 +49,9 @@ class APIHandler(BaseHTTPRequestHandler):
 
     def get_session(self):
         session = self.headers.get('X-App-Session')
+        if not session:
+            qs = parse_qs(urlparse(self.path).query)
+            session = (qs.get('session') or [''])[0].strip()
         if not session or not session.isalnum():
             return None
         return session
@@ -146,11 +152,29 @@ class APIHandler(BaseHTTPRequestHandler):
             if not self.is_library_authorized():
                 return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
             job_id = data.get('job_id')
-            if not job_id:
-                return self.send_json(400, {'error': 'job_id wajib diisi'})
+            item_id = data.get('item_id')
+            if not job_id and not item_id:
+                return self.send_json(400, {'error': 'item_id atau job_id wajib diisi'})
             try:
-                res = job_manager.retry_library_import(job_id, session)
-                self.send_json(200, res)
+                if item_id:
+                    item = library_db.get_library_item(int(item_id))
+                    if not item:
+                        return self.send_json(404, {'error': 'Item tidak ditemukan'})
+                    folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
+                    video_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.mp4', '.mkv', '.webm', '.mov', '.avi')] if folder.exists() and folder.is_dir() else []
+                    if video_files:
+                        primary_vid = sorted(video_files, key=lambda f: f.stat().st_size, reverse=True)[0]
+                        probe_res = run_ffprobe(primary_vid)
+                        if probe_res.get('valid'):
+                            library_db.update_item_status(item['id'], 'ready')
+                            return self.send_json(200, {'ok': True, 'message': f"Item '{item['title']}' berhasil diverifikasi dan siap ditonton!"})
+                        else:
+                            return self.send_json(400, {'error': f"Validasi media gagal: {probe_res.get('error', 'Format tidak terbaca')}"})
+                    else:
+                        return self.send_json(404, {'error': 'Berkas video tidak ditemukan di folder perpustakaan'})
+                else:
+                    res = job_manager.retry_library_import(job_id, session)
+                    self.send_json(200, res)
             except ValueError as e:
                 self.send_json(400, {'error': str(e)})
             except Exception as e:
@@ -164,11 +188,44 @@ class APIHandler(BaseHTTPRequestHandler):
                 return self.send_json(400, {'error': 'item_id wajib diisi'})
             try:
                 res = job_manager.retry_library_indexing(int(item_id), session)
+                msg = res.get('message', '')
+                if not res.get('success') and any(k in msg for k in ['Connection refused', 'Errno 111', 'Errno 61', '10061', 'tidak dapat dihubungi']):
+                    res['jellyfin_offline'] = True
+                    res['ok'] = False
+                    res['message'] = 'Server Jellyfin eksternal belum aktif. Video dapat langsung ditonton menggunakan pemutar web bawaan.'
+                else:
+                    res['ok'] = res.get('success', False)
                 self.send_json(200, res)
-            except ValueError as e:
-                self.send_json(400, {'error': str(e)})
             except Exception as e:
-                self.send_json(500, {'error': str(e)})
+                err_str = str(e)
+                if any(k in err_str for k in ['Connection refused', 'Errno 111', 'Errno 61', '10061', 'tidak dapat dihubungi']):
+                    self.send_json(200, {
+                        'ok': False,
+                        'jellyfin_offline': True,
+                        'message': 'Server Jellyfin eksternal belum aktif di port 8096. Video dapat langsung ditonton menggunakan pemutar web bawaan.'
+                    })
+                else:
+                    self.send_json(200, {'ok': False, 'error': err_str})
+
+        elif path == '/api/library/scan':
+            if not self.is_library_authorized():
+                return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            try:
+                ok = jellyfin_client.trigger_scan()
+                if ok:
+                    self.send_json(200, {'ok': True, 'message': 'Pemindaian katalog Jellyfin berhasil dipicu.'})
+                else:
+                    self.send_json(200, {
+                        'ok': False,
+                        'jellyfin_offline': True,
+                        'message': 'Server Jellyfin eksternal belum aktif. Pemutaran web mandiri tetap berfungsi penuh.'
+                    })
+            except Exception:
+                self.send_json(200, {
+                    'ok': False,
+                    'jellyfin_offline': True,
+                    'message': 'Server Jellyfin eksternal belum aktif di port 8096. Video dapat ditonton langsung di pemutar web.'
+                })
 
         elif path == '/api/library/delete':
             if not self.is_library_authorized():
@@ -195,13 +252,34 @@ class APIHandler(BaseHTTPRequestHandler):
         
         # API Routes
         if path.startswith('/api/'):
-            session = self.get_session()
-            if not session:
-                return self.send_json(401, {'error': 'Unauthorized'})
-
             if path.startswith('/api/library/'):
                 if not self.is_library_authorized():
                     return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            else:
+                session = self.get_session()
+                if not session:
+                    return self.send_json(401, {'error': 'Unauthorized'})
+
+            if path.startswith('/api/library/stream/'):
+                item_id_str = path.split('/')[-1]
+                try:
+                    return self.serve_library_media(int(item_id_str))
+                except (ValueError, TypeError):
+                    return self.send_error(400, 'Invalid item ID')
+
+            if path.startswith('/api/library/subtitle/'):
+                item_id_str = path.split('/')[-1]
+                try:
+                    return self.serve_library_subtitle(int(item_id_str))
+                except (ValueError, TypeError):
+                    return self.send_error(400, 'Invalid item ID')
+
+            if path.startswith('/api/library/poster/'):
+                item_id_str = path.split('/')[-1]
+                try:
+                    return self.serve_library_poster(int(item_id_str))
+                except (ValueError, TypeError):
+                    return self.send_error(400, 'Invalid item ID')
 
             if path == '/api/status':
                 jobs = job_manager.get_user_jobs(session)
@@ -439,6 +517,197 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
 
         # Serve static files and templates
         self.serve_static(path)
+
+    def serve_library_media(self, item_id: int):
+        item = library_db.get_library_item(item_id)
+        if not item:
+            return self.send_error(404, 'Item perpustakaan tidak ditemukan')
+        
+        folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
+        try:
+            folder.relative_to(config.LIBRARY_ROOT.resolve())
+        except ValueError:
+            return self.send_error(403, 'Path traversal detected')
+
+        if not folder.exists() or not folder.is_dir():
+            return self.send_error(404, 'Folder media tidak ditemukan')
+
+        # Find primary video file
+        video_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.mp4', '.mkv', '.webm', '.mov', '.avi')]
+        if not video_files:
+            return self.send_error(404, 'Berkas video tidak ditemukan di perpustakaan')
+
+        target_file = sorted(video_files, key=lambda f: f.stat().st_size, reverse=True)[0]
+        file_size = target_file.stat().st_size
+        mime = mimetypes.guess_type(target_file.name)[0] or 'video/mp4'
+
+        range_header = self.headers.get('Range')
+        if range_header and range_header.startswith('bytes='):
+            try:
+                ranges = range_header.replace('bytes=', '').strip().split('-')
+                start = int(ranges[0]) if ranges[0] else 0
+                end = int(ranges[1]) if len(ranges) > 1 and ranges[1] else file_size - 1
+                if start >= file_size or end >= file_size or start > end:
+                    self.send_response(416)
+                    self.send_header('Content-Range', f'bytes */{file_size}')
+                    self.end_headers()
+                    return
+
+                length = end - start + 1
+                self.send_response(206)
+                self.send_header('Content-Type', mime)
+                self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                self.send_header('Content-Length', str(length))
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Content-Disposition', 'inline')
+                self.end_headers()
+
+                with open(target_file, 'rb') as f:
+                    f.seek(start)
+                    bytes_remaining = length
+                    chunk_size = 256 * 1024
+                    while bytes_remaining > 0:
+                        chunk = f.read(min(chunk_size, bytes_remaining))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        bytes_remaining -= len(chunk)
+                return
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except Exception as e:
+                return self.send_error(500, f'Streaming error: {e}')
+
+        # Full file stream
+        try:
+            self.send_response(200)
+            self.send_header('Content-Type', mime)
+            self.send_header('Content-Length', str(file_size))
+            self.send_header('Accept-Ranges', 'bytes')
+            self.send_header('Content-Disposition', 'inline')
+            self.end_headers()
+
+            with open(target_file, 'rb') as f:
+                chunk_size = 256 * 1024
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception:
+            self.send_error(500, 'Streaming error')
+
+    def serve_library_subtitle(self, item_id: int):
+        item = library_db.get_library_item(item_id)
+        if not item:
+            return self.send_error(404, 'Item tidak ditemukan')
+        
+        folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
+        sub_content = "WEBVTT\n\n"
+        if folder.exists() and folder.is_dir():
+            sub_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.vtt', '.srt')]
+            if sub_files:
+                vtt_files = [p for p in sub_files if p.suffix.lower() == '.vtt']
+                chosen_sub = vtt_files[0] if vtt_files else sub_files[0]
+                try:
+                    raw_text = chosen_sub.read_text(encoding='utf-8', errors='ignore')
+                    if chosen_sub.suffix.lower() == '.srt':
+                        vtt_body = re.sub(r'(\d{2}:\d{2}:\d{2}),(\d{3})', r'\1.\2', raw_text)
+                        sub_content = "WEBVTT\n\n" + vtt_body
+                    else:
+                        sub_content = raw_text if raw_text.startswith('WEBVTT') else f"WEBVTT\n\n{raw_text}"
+                except Exception:
+                    pass
+
+        body = sub_content.encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/vtt; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def serve_library_poster(self, item_id: int):
+        item = library_db.get_library_item(item_id)
+        title = item.get('title', 'Media Film') if item else 'OmniFetch Media'
+        year = item.get('year', '') if item else ''
+        year_str = f" • {year}" if year else ""
+        
+        # Check if local image exists in item folder
+        if item:
+            folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
+            if folder.exists() and folder.is_dir():
+                img_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp')]
+                if img_files:
+                    target_img = img_files[0]
+                    content = target_img.read_bytes()
+                    mime = mimetypes.guess_type(target_img.name)[0] or 'image/jpeg'
+                    self.send_response(200)
+                    self.send_header('Content-Type', mime)
+                    self.send_header('Content-Length', str(len(content)))
+                    self.send_header('Cache-Control', 'public, max-age=86400')
+                    self.end_headers()
+                    self.wfile.write(content)
+                    return
+
+        # Generate a premium cinematic 2:3 SVG poster card (400x600)
+        safe_title = html.escape(title[:45] + ('...' if len(title) > 45 else ''))
+        
+        svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+    <linearGradient id="overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="40%" stop-color="rgba(15,23,42,0)" />
+      <stop offset="100%" stop-color="rgba(10,14,26,0.95)" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="rgba(99,102,241,0.25)" />
+      <stop offset="100%" stop-color="rgba(99,102,241,0)" />
+    </radialGradient>
+  </defs>
+  <rect width="400" height="600" fill="url(#bg)" />
+  <circle cx="200" cy="220" r="160" fill="url(#glow)" />
+  
+  <path d="M40 0 V600 M360 0 V600 M0 500 H400" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+  
+  <g transform="translate(160, 180)" stroke="#818cf8" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="0" y="10" width="80" height="60" rx="6" stroke="#6366f1" fill="rgba(30,27,75,0.6)" />
+    <polygon points="32,28 32,52 54,40" fill="#a5b4fc" stroke="#a5b4fc" />
+    <path d="M10 10 L20 0 H70 L80 10" stroke="#818cf8" fill="rgba(99,102,241,0.2)" />
+    <line x1="26" y1="0" x2="30" y2="10" />
+    <line x1="44" y1="0" x2="48" y2="10" />
+    <line x1="62" y1="0" x2="66" y2="10" />
+  </g>
+
+  <rect width="400" height="600" fill="url(#overlay)" />
+  
+  <g transform="translate(24, 30)">
+    <rect width="78" height="22" rx="4" fill="rgba(15,23,42,0.85)" stroke="rgba(255,255,255,0.15)" />
+    <text x="39" y="15" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1">WEB-DL</text>
+  </g>
+  <g transform="translate(296, 30)">
+    <rect width="80" height="22" rx="4" fill="rgba(14,116,144,0.8)" stroke="rgba(6,182,212,0.4)" />
+    <text x="336" y="15" fill="#cffafe" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="0.5">SUB INDO</text>
+  </g>
+  
+  <g transform="translate(24, 520)">
+    <text x="0" y="0" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700">{safe_title}</text>
+    <text x="0" y="24" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500">OmniFetch Cinema Studio{year_str}</text>
+  </g>
+</svg>"""
+        body = svg.encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/svg+xml')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'public, max-age=3600')
+        self.end_headers()
+        self.wfile.write(body)
 
     def serve_job_file(self, path: str, stream: bool = False):
         parts = path.strip('/').split('/')

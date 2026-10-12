@@ -181,7 +181,7 @@ class Job:
         while retry_count <= max_retries:
             self.status = "downloading"
             if retry_count > 0:
-                self.log(f"🔄 Memulai ulang percobaan ke-{retry_count} / {max_retries}...")
+                self.log(f"Memulai ulang percobaan ke-{retry_count} / {max_retries}...")
             job_manager.save_db()
             
             try:
@@ -198,7 +198,7 @@ class Job:
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace'
                 )
                 
-                current_stage = '⬇️ Mengunduh media...'
+                current_stage = 'Mengunduh media...'
                 for raw in self.process.stdout:
                     line = raw.strip()
                     if line.startswith('APP_PROGRESS:'):
@@ -214,11 +214,11 @@ class Job:
                         self.log(line)
                         stage = None
                         if 'Downloading webpage' in line: stage = 'Menghubungi server media…'
-                        elif '[download] Downloading item' in line: stage = line.replace('[download]', '🎬').strip()
+                        elif '[download] Downloading item' in line: stage = line.replace('[download]', '').strip()
                         elif 'Downloading m3u8' in line: stage = 'Menyiapkan daftar potongan video…'
-                        elif 'Retrying' in line: stage = '⚠️ Koneksi tersendat. Mencoba kembali…'
-                        elif '[Merger]' in line: stage = '🔄 Menggabungkan video dan audio…'
-                        elif '[ExtractAudio]' in line: stage = '🎵 Mengekstrak audio…'
+                        elif 'Retrying' in line: stage = 'Koneksi tersendat. Mencoba kembali…'
+                        elif '[Merger]' in line: stage = 'Menggabungkan video dan audio…'
+                        elif '[ExtractAudio]' in line: stage = 'Mengekstrak audio…'
                         
                         if stage:
                             current_stage = stage
@@ -272,7 +272,7 @@ class Job:
                         else:
                             self.status = "needs_attention"
                             err_msg = res.get('error', 'Gagal memproses impor ke perpustakaan.')
-                            self.log(f"⚠️ Impor perpustakaan tertunda: {err_msg}")
+                            self.log(f"Impor perpustakaan tertunda: {err_msg}")
                             library_db.update_library_job(self.id, stage="needs_attention", error_message=err_msg)
                         break
                     else:
@@ -280,23 +280,26 @@ class Job:
                         self.percent = 100.0
                         break # Success
                 else:
-                    self.status = "failed"
                     self.log(f"Unduhan gagal (Kode keluar: {self.process.returncode})")
                     
                     log_text = "\n".join(self.logs)
                     
                     # Do not retry on explicit Auth or Not Found / URL expiration errors
                     if "HTTP Error 401" in log_text or "HTTP Error 403" in log_text or "Sign in to confirm" in log_text:
-                        self.log("🔒 Otentikasi diperlukan. Akses ditolak oleh server sumber.")
+                        self.log("Otentikasi diperlukan. Akses ditolak oleh server sumber.")
+                        self.status = "failed"
                         break
                     elif "Video unavailable" in log_text or "Private video" in log_text or "has been removed" in log_text or "HTTP Error 404" in log_text:
-                        self.log("🚫 Video tidak tersedia, pribadi, telah dihapus, atau URL sudah kedaluwarsa.")
+                        self.log("Video tidak tersedia, pribadi, telah dihapus, atau URL sudah kedaluwarsa.")
+                        self.status = "failed"
                         break
                         
                     if "HTTP Error 429" in log_text or "Rate limit" in log_text:
-                        self.log("⚠️ Server media membatasi kecepatan (Rate Limit).")
+                        self.log("Server media membatasi kecepatan (Rate Limit).")
                     elif "timeout" in log_text.lower() or "502" in log_text or "503" in log_text or "504" in log_text:
-                        self.log("⚠️ Gangguan jaringan atau server media (Timeout/5xx).")
+                        self.log("Gangguan jaringan atau server media (Timeout/5xx).")
+                    
+                    self.status = "failed"
                         
             except Exception as e:
                 self.status = "failed"
@@ -469,7 +472,7 @@ class JobManager:
 
         job.status = "importing"
         job.percent = 95.0
-        job.log("🔄 Mengulang proses impor ke perpustakaan Jellyfin…")
+        job.log("Mengulang proses impor ke perpustakaan Jellyfin…")
         library_db.update_library_job(job.id, stage="importing")
         self.save_db()
 
@@ -501,7 +504,7 @@ class JobManager:
             else:
                 job.status = "needs_attention"
                 err_msg = res.get('error', 'Gagal memproses ulang impor.')
-                job.log(f"⚠️ Impor gagal: {err_msg}")
+                job.log(f"Impor gagal: {err_msg}")
                 library_db.update_library_job(job.id, stage="needs_attention", error_message=err_msg)
             self.save_db()
         return res

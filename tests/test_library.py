@@ -656,6 +656,98 @@ Subtitle Indonesia uji coba.
             self.assertTrue(sufficient)
             self.assertGreater(free_gb, 0.0)
 
+    def test_library_streaming_chunked_and_range_requests(self):
+        """Tests that /api/library/stream/<id> supports full 200 download and RFC 7233 206 partial range streaming."""
+        # Setup item with mock video
+        folder_rel = "movies/Test Stream Movie (2024)"
+        item_folder = config.LIBRARY_ROOT / folder_rel
+        item_folder.mkdir(parents=True, exist_ok=True)
+        vid_file = item_folder / "Test Stream Movie (2024).mp4"
+        dummy_video_data = b"OmniFetchMockVideoChunk" * 100  # 2300 bytes
+        vid_file.write_bytes(dummy_video_data)
+
+        item = create_library_item("Test Stream Movie", 2024, "test stream movie", folder_rel, db_path=config.LIBRARY_DB_PATH)
+        item_id = item["id"]
+
+        # 1. Full stream request (200 OK)
+        url = f"http://127.0.0.1:{self.api_port}/api/library/stream/{item_id}?library_auth={config.LIBRARY_PASSWORD}"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Accept-Ranges"), "bytes")
+            self.assertEqual(resp.headers.get("Content-Type"), "video/mp4")
+            data = resp.read()
+            self.assertEqual(len(data), len(dummy_video_data))
+            self.assertEqual(data, dummy_video_data)
+
+        # 2. Partial content request (206 Range)
+        req_range = urllib.request.Request(url, headers={"Range": "bytes=0-99"})
+        with urllib.request.urlopen(req_range) as resp_range:
+            self.assertEqual(resp_range.status, 206)
+            self.assertEqual(resp_range.headers.get("Content-Range"), f"bytes 0-99/{len(dummy_video_data)}")
+            partial_data = resp_range.read()
+            self.assertEqual(len(partial_data), 100)
+            self.assertEqual(partial_data, dummy_video_data[:100])
+
+    def test_library_subtitle_serving_and_srt_vtt_conversion(self):
+        """Tests that /api/library/subtitle/<id> serves WebVTT and converts SRT timestamps on the fly."""
+        folder_rel = "movies/Test Subtitle Movie (2024)"
+        item_folder = config.LIBRARY_ROOT / folder_rel
+        item_folder.mkdir(parents=True, exist_ok=True)
+        srt_file = item_folder / "Test Subtitle Movie.id.srt"
+        srt_content = "1\n00:00:01,000 --> 00:00:04,500\nHalo dunia subtitle!\n\n"
+        srt_file.write_text(srt_content, encoding="utf-8")
+
+        item = create_library_item("Test Subtitle Movie", 2024, "test subtitle movie", folder_rel, db_path=config.LIBRARY_DB_PATH)
+        item_id = item["id"]
+
+        url = f"http://127.0.0.1:{self.api_port}/api/library/subtitle/{item_id}?library_auth={config.LIBRARY_PASSWORD}"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertIn("text/vtt", resp.headers.get("Content-Type"))
+            content = resp.read().decode("utf-8")
+            self.assertTrue(content.startswith("WEBVTT"))
+            self.assertIn("00:00:01.000 --> 00:00:04.500", content)
+            self.assertIn("Halo dunia subtitle!", content)
+
+    def test_library_poster_generation(self):
+        """Tests that /api/library/poster/<id> generates a rich 2:3 cinematic SVG poster card."""
+        item = create_library_item("Dokter Ajaib", 2024, "dokter ajaib", "movies/Dokter Ajaib (2024)", db_path=config.LIBRARY_DB_PATH)
+        item_id = item["id"]
+
+        url = f"http://127.0.0.1:{self.api_port}/api/library/poster/{item_id}?library_auth={config.LIBRARY_PASSWORD}"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.headers.get("Content-Type"), "image/svg+xml")
+            svg_data = resp.read().decode("utf-8")
+            self.assertIn("<svg", svg_data)
+            self.assertIn("Dokter Ajaib", svg_data)
+            self.assertIn("WEB-DL", svg_data)
+            self.assertIn("SUB INDO", svg_data)
+
+    def test_library_retry_actions_graceful_offline_handling(self):
+        """Tests that retry-index and scan gracefully inform the caller when Jellyfin is offline without crashing."""
+        from backend.core.jellyfin import jellyfin_client
+        item = create_library_item("Offline Jellyfin Film", 2024, "offline", "movies/Offline", db_path=config.LIBRARY_DB_PATH)
+        item_id = item["id"]
+
+        # Call retry-index with non-existent port (simulate connection refused)
+        orig_url = jellyfin_client.internal_url
+        jellyfin_client.internal_url = "http://127.0.0.1:59999"  # Port without server
+        try:
+            res = self._api_request("/api/library/retry-index", {"item_id": item_id})
+            self.assertIn("jellyfin_offline", res)
+            self.assertTrue(res["jellyfin_offline"])
+
+            res_scan = self._api_request("/api/library/scan", {})
+            self.assertIn("jellyfin_offline", res_scan)
+            self.assertTrue(res_scan["jellyfin_offline"])
+        finally:
+            jellyfin_client.internal_url = orig_url
+
 
 if __name__ == "__main__":
     unittest.main()
+
