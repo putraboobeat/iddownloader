@@ -249,6 +249,8 @@ class LibraryImporter:
         probe_res = run_ffprobe(primary_video)
         if not probe_res.get('valid'):
             return {'success': False, 'error': f"Validasi media gagal: {probe_res.get('error', 'Format tidak terbaca')}"}
+        if not probe_res.get('has_video'):
+            return {'success': False, 'error': "Berkas media yang diunduh tidak memiliki trek video (hanya audio). Silakan pilih sumber video/stream utama di pemutar."}
 
         # Step 3: Parse and sanitize naming
         clean_title, year = parse_year_from_title(raw_title, explicit_year)

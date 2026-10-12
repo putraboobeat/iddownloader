@@ -496,7 +496,15 @@ async function refreshCandidates(activeScan = false) {
 
                         // C. HLS m3u8
                         const m3u8Matches = html.match(/https?:\/\/[^"'\s<>]+\.m3u8(\?[^"'\s<>]*)?/gi) || [];
-                        m3u8Matches.slice(0, 5).forEach(u => add(u, 'hls', 'Playlist HLS (Halaman)'));
+                        m3u8Matches.slice(0, 5).forEach(u => {
+                            const uLower = u.toLowerCase();
+                            const isAudio = /\b(audio|sound|tracks?-a\d*|\/a\d+\/)\b/i.test(uLower) || uLower.includes('/audio/') || uLower.includes('audio.m3u8');
+                            if (isAudio) {
+                                add(u, 'audio', 'Playlist Audio (HLS)');
+                            } else {
+                                add(u, 'hls', uLower.includes('master') ? 'Playlist HLS (Master)' : 'Playlist Video (HLS)');
+                            }
+                        });
 
                         // D. Video MP4
                         const mp4Matches = html.match(/https?:\/\/[^"'\s<>]+\.mp4(\?[^"'\s<>]*)?/gi) || [];
@@ -594,12 +602,15 @@ async function refreshCandidates(activeScan = false) {
             const defaultSubOpt = new Option('Tanpa subtitle tambahan', '__NONE__');
             subSelect.append(defaultSubOpt);
 
-            const videoCandidates = detectedItems.filter(x => 
+            const nonSubNonAds = detectedItems.filter(x => 
                 x.kind !== 'subtitle' && 
                 x.kind !== 'non_media' && 
                 x.kind !== 'segment' && 
                 !Detector.isAdOrAnalytics(x.url)
             );
+            // Prioritaskan video murni (kecualikan stream audio agar tidak menggeser video)
+            const pureVideoCandidates = nonSubNonAds.filter(x => x.kind !== 'audio' && !x.statusLabel?.toLowerCase().includes('audio'));
+            const videoCandidates = pureVideoCandidates.length > 0 ? pureVideoCandidates : nonSubNonAds;
             const subCandidates = detectedItems.filter(x => x.kind === 'subtitle');
 
             for (const item of videoCandidates) {

@@ -41,7 +41,7 @@ export class Detector {
             'adnxs.com', 'adsystem', 'popads', 'adsterra', 'scorecardresearch.com',
             '/telemetry', '/analytics', '/beacon', '/metrics', '/event-collector',
             '/tr/pixel', 'facebook.com/tr', 'tiktok.com/api/v1/pixel',
-            '/claim', '/track', '/speculation', '/web-observations',
+            '/claim', '/tracking', '/tracker', '/track?', '/speculation', '/web-observations',
             'challenges.cloudflare.com', 'cloudflareinsights.com', '/cdn-cgi/challenge',
             '/cdn-cgi/speculation'
         ];
@@ -80,14 +80,28 @@ export class Detector {
                 return { kind: 'hls', statusLabel: 'Playlist Config (Idlix)', isMedia: true, verified: true };
             }
 
+            // Pola deteksi stream audio terpisah pada HLS / DASH (misal tracks-a1, /audio/, audio.m3u8)
+            const isAudioTrack = /\b(audio|sound|tracks?-a\d*|\/a\d+\/|audio_|audio-)\b/i.test(fullLower) ||
+                fullLower.includes('/audio/') ||
+                fullLower.includes('audio.m3u8') ||
+                fullLower.includes('-audio.') ||
+                fullLower.includes('_audio.');
+
             // 3. HLS Playlist (Pasti jika berekstensi .m3u8 atau mime)
             if (/\.m3u8$/.test(path) || mime.includes('mpegurl') || mime.includes('x-mpegurl')) {
-                const label = fullLower.includes('master') ? 'Playlist HLS (Master)' : 'Playlist HLS';
+                if (isAudioTrack) {
+                    return { kind: 'audio', statusLabel: 'Playlist Audio (HLS)', isMedia: true, verified: true };
+                }
+                const isMaster = fullLower.includes('master') || fullLower.includes('playlist.m3u8');
+                const label = isMaster ? 'Playlist HLS (Master)' : 'Playlist Video (HLS)';
                 return { kind: 'hls', statusLabel: label, isMedia: true, verified: true };
             }
             
             // 4. DASH Manifest (Pasti jika .mpd)
             if (/\.mpd$/.test(path) || mime.includes('dash+xml')) {
+                if (isAudioTrack) {
+                    return { kind: 'audio', statusLabel: 'Manifest Audio (DASH)', isMedia: true, verified: true };
+                }
                 return { kind: 'dash', statusLabel: 'Manifest DASH', isMedia: true, verified: true };
             }
             
@@ -120,8 +134,23 @@ export class Detector {
         
         // Cek HLS
         if (snippet.startsWith('#EXTM3U') || snippet.includes('#EXT-X-STREAM-INF') || snippet.includes('#EXT-X-TARGETDURATION')) {
-            candidate.kind = 'hls';
-            candidate.statusLabel = snippet.includes('#EXT-X-STREAM-INF') ? 'Playlist HLS (Master)' : 'Playlist HLS';
+            const isMaster = snippet.includes('#EXT-X-STREAM-INF');
+            const isAudioHls = !isMaster && (
+                /\b(audio|sound|tracks?-a\d*|\/a\d+\/|audio_|audio-)\b/i.test(candidate.url) ||
+                candidate.url.toLowerCase().includes('/audio/') ||
+                candidate.url.toLowerCase().includes('audio.m3u8') ||
+                snippet.includes('TYPE=AUDIO') ||
+                snippet.includes('.aac') ||
+                snippet.includes('.mp4a')
+            );
+
+            if (isAudioHls) {
+                candidate.kind = 'audio';
+                candidate.statusLabel = 'Playlist Audio (HLS)';
+            } else {
+                candidate.kind = 'hls';
+                candidate.statusLabel = isMaster ? 'Playlist HLS (Master)' : 'Playlist Video (HLS)';
+            }
             candidate.isMedia = true;
             candidate.verified = true;
             return candidate;
@@ -443,11 +472,13 @@ export class Detector {
             let s = 0;
             const fullLower = (x.url || '').toLowerCase();
             if (this.isAdOrAnalytics(fullLower)) return -999;
-            if (x.statusLabel?.includes('Master')) s += 60;
+            if (x.statusLabel?.includes('Config (Idlix)')) s += 70;
+            else if (x.statusLabel?.includes('Master')) s += 60;
+            else if (x.statusLabel?.includes('Video')) s += 55;
             else if (x.kind === 'hls') s += 50;
             else if (x.kind === 'dash') s += 45;
             else if (x.kind === 'video') s += 40;
-            else if (x.kind === 'audio') s += 25;
+            else if (x.kind === 'audio' || x.statusLabel?.includes('Audio')) s += 15;
             else if (x.kind === 'unverified') s += 10;
             if (x.sourceType === 'dom') s += 2;
             return s;

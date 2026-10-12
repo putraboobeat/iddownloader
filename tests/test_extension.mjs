@@ -156,14 +156,20 @@ async function runTests() {
     assert.equal(adCandidate.kind, 'non_media');
     assert.equal(adCandidate.isMedia, false);
 
+    // Audio HLS Rendition (harus terdeteksi sebagai audio, bukan mengalahkan video)
+    const audioHls = Detector.initialClassify('https://cdn.example.com/hls/tracks-a1/mono.m3u8', '');
+    assert.equal(audioHls.kind, 'audio');
+    assert.equal(audioHls.statusLabel, 'Playlist Audio (HLS)');
+
     // Smart source selection (findBestMedia)
     const candidatesList = [
         { url: 'https://ad.example.com/ad.mp4', kind: 'video', isMedia: true, time: 200 },
+        { url: 'https://cdn.example.com/hls/tracks-a1/mono.m3u8', kind: 'audio', statusLabel: 'Playlist Audio (HLS)', isMedia: true, time: 300 },
         { url: 'https://cdn.example.com/master.m3u8', kind: 'hls', statusLabel: 'Playlist HLS (Master)', isMedia: true, time: 100 },
         { url: 'https://cdn.example.com/audio.mp3', kind: 'audio', isMedia: true, time: 50 }
     ];
     const bestMedia = Detector.findBestMedia(candidatesList);
-    assert.equal(bestMedia.url, 'https://cdn.example.com/master.m3u8', 'findBestMedia should prioritize HLS Master over single formats');
+    assert.equal(bestMedia.url, 'https://cdn.example.com/master.m3u8', 'findBestMedia should prioritize HLS Master over single formats and audio HLS streams even if audio came later');
 
     // Subtitle auto-selection (findDefaultSubtitle)
     const subsList = [
