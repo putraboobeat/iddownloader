@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniFetch — Panel Super Admin</title>
+    <meta name="description" content="Panel administrasi operasional OmniFetch untuk VPS: monitor proses, riwayat unduhan, inventaris penyimpanan, dan pengelolaan perpustakaan film.">
+    <link rel="icon" type="image/png" href="/favicon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #06080d;
+            --bg-sidebar: #0b0f19;
+            --bg-card: #111726;
+            --bg-card-hover: #161e31;
+            --bg-elevated: #1a233a;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(239, 68, 68, 0.4);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #ef4444;
+            --accent-glow: rgba(239, 68, 68, 0.35);
+            --accent-dark: #dc2626;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --focus-ring: 0 0 0 3px #ef4444, 0 0 16px rgba(239, 68, 68, 0.5);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --sidebar-width: 260px;
+            --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* Sidebar */
+        aside.admin-sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 40;
+            transition: var(--transition);
+        }
+
+        .sidebar-brand {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #ef4444, #991b1b);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .brand-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: #ffffff;
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-title span { color: var(--accent); }
+        .brand-badge-tag {
+            font-size: 0.65rem;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        nav.sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: var(--transition);
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            opacity: 0.8;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(239, 68, 68, 0.12);
+            color: #ffffff;
+            border-color: rgba(239, 68, 68, 0.3);
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        .nav-item.active svg {
+            fill: var(--accent);
+            opacity: 1;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .user-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #ffffff;
+            border: 1px solid var(--border);
+        }
+
+        /* Main Workspace */
+        main.admin-workspace {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        header.workspace-header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: rgba(6, 8, 13, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .header-title-group h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+        }
+
+        .header-title-group p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .header-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .header-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        .header-btn.primary:hover {
+            background: var(--accent-dark);
+        }
+
+        /* Content Views */
+        .admin-content {
+            padding: 24px 28px 60px;
+            flex: 1;
+        }
+
+        .view-panel {
+            display: none;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .view-panel.active {
+            display: flex;
+        }
+
+        /* Metric Cards */
+        .metric-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            transition: var(--transition);
+        }
+
+        .metric-card.accent::before { background: var(--accent); }
+        .metric-card.success::before { background: var(--success); }
+        .metric-card.warning::before { background: var(--warning); }
+        .metric-card.info::before { background: var(--info); }
+
+        .metric-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .metric-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+
+        .metric-sub {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .alert-banner.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .alert-text h4 {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 2px;
+        }
+
+        .alert-text p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Charts & Section Box */
+        .dashboard-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        /* Data Tables */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table.admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        table.admin-table th {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.admin-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+
+        table.admin-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-primary);
+        }
+
+        /* Stage Badges */
+        .stage-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stage-badge.queued { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+        .stage-badge.downloading { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .stage-badge.validating { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .stage-badge.importing { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .stage-badge.indexing { background: rgba(20, 184, 166, 0.15); color: #2dd4bf; }
+        .stage-badge.ready, .stage-badge.completed { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .stage-badge.failed { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .stage-badge.cancelled { background: rgba(100, 116, 139, 0.15); color: #cbd5e1; }
+        .stage-badge.interrupted { background: rgba(234, 88, 12, 0.15); color: #fb923c; }
+        .stage-badge.needs_attention { background: rgba(225, 29, 72, 0.15); color: #fb7185; }
+
+        /* Drawer Inspection */
+        .drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .drawer-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .admin-drawer {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            max-width: 580px;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border);
+            z-index: 101;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .drawer-backdrop.open .admin-drawer {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .drawer-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Modal Overlays */
+        .admin-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .admin-modal-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .admin-modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 560px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Forms & Inputs */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            color: #ffffff;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--accent);
+            box-shadow: var(--focus-ring);
+        }
+
+        /* Simple Activity Bar Chart */
+        .chart-bars-wrap {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 160px;
+            padding-top: 10px;
+        }
+
+        .chart-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .bar-stack {
+            width: 100%;
+            max-width: 32px;
+            border-radius: 4px 4px 0 0;
+            background: var(--accent);
+            min-height: 4px;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+
+        .bar-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Auth Screen */
+        .login-screen-wrap {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-base);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen Overlay (Shown if unauthenticated) -->
+    <div id="login-screen" class="login-screen-wrap" style="display:none;">
+        <div class="admin-modal-card" style="max-width:400px; text-align:center;">
+            <div class="brand-icon" style="margin: 0 auto; width:48px; height:48px;">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            </div>
+            <div>
+                <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:800;">OMNI<span style="color:var(--accent);">FETCH</span></h2>
+                <p style="color:var(--text-muted); font-size:0.82rem; margin-top:2px;">Autentikasi Super Administrator</p>
+            </div>
+            <form id="form-admin-login" style="display:flex; flex-direction:column; gap:14px; margin-top:8px;">
+                <div class="form-group" style="text-align:left;">
+                    <label class="form-label" for="login-username">Username</label>
+                    <input type="text" id="login-username" class="form-input" required autocomplete="username" placeholder="admin">
+                </div>
+                <div class="form-group" style="text-align:left;">
+                    <label class="form-label" for="login-password">Kata Sandi</label>
+                    <input type="password" id="login-password" class="form-input" required autocomplete="current-password" placeholder="••••••••">
+                </div>
+                <button type="submit" class="header-btn primary" style="width:100%; justify-content:center; padding:12px; margin-top:4px;">
+                    Masuk ke Panel Admin
+                </button>
+            </form>
+            <div id="login-error-msg" style="color:#f87171; font-size:0.8rem; display:none;"></div>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Tidak ada sandi bawaan. Buat akun pertama melalui terminal:<br><code style="color:#f1f5f9; background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">python3 backend/main.py --create-admin</code></p>
+        </div>
+    </div>
+
+    <!-- Admin Sidebar -->
+    <aside class="admin-sidebar">
+        <a href="/" class="sidebar-brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            </div>
+            <div>
+                <div class="brand-title">OMNI<span>FETCH</span></div>
+                <div class="brand-badge-tag">SUPER ADMIN</div>
+            </div>
+        </a>
+
+        <nav class="sidebar-nav" id="sidebar-nav-menu">
+            <a class="nav-item active" data-view="view-summary">
+                <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                Ringkasan
+            </a>
+            <a class="nav-item" data-view="view-active-jobs">
+                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                Proses Aktif
+            </a>
+            <a class="nav-item" data-view="view-history">
+                <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                Riwayat Download
+            </a>
+            <a class="nav-item" data-view="view-storage">
+                <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2H0c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2h-4zM4 5h16v11H4V5z"/></svg>
+                Penyimpanan
+            </a>
+            <a class="nav-item" data-view="view-library">
+                <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                Perpustakaan
+            </a>
+            <a class="nav-item" data-view="view-stats">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Statistik Penggunaan
+            </a>
+            <a class="nav-item" data-view="view-audit">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                Audit Log
+            </a>
+            <a class="nav-item" data-view="view-settings">
+                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54A.484.484 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.63 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h4c.25 0 .46-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                Pengaturan
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-pill">
+                <div class="user-avatar" id="sidebar-avatar">A</div>
+                <span id="sidebar-username">admin</span>
+            </div>
+            <button type="button" class="header-btn" id="btn-sidebar-logout" title="Keluar">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="admin-workspace">
+        <header class="workspace-header">
+            <div class="header-title-group">
+                <h2 id="view-title">Ringkasan Operasional</h2>
+                <p id="view-subtitle">Status real-time downloader, perpustakaan, dan performa server VPS</p>
+            </div>
+
+            <div class="header-actions">
+                <div style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted);">
+                    <span id="live-indicator" style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+                    <span id="last-updated-text">Memuat...</span>
+                </div>
+                <a href="/" class="header-btn" target="_blank" title="Buka Perpustakaan Film">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    Perpustakaan
+                </a>
+                <button type="button" class="header-btn primary" id="btn-refresh-data">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    Perbarui
+                </button>
+            </div>
+        </header>
+
+        <div class="admin-content">
+            <!-- 1. VIEW RINGKASAN -->
+            <section class="view-panel active" id="view-summary">
+                <div id="alerts-container"></div>
+
+                <div class="metric-cards-grid">
+                    <div class="metric-card accent" onclick="switchView('view-active-jobs');">
+                        <div class="metric-label">Tugas Memproses</div>
+                        <div class="metric-val" id="metric-processing">0</div>
+                        <div class="metric-sub" id="metric-processing-sub">0 mengunduh • 0 validasi</div>
+                    </div>
+                    <div class="metric-card info" onclick="switchView('view-history', {stage:'completed'});">
+                        <div class="metric-label">Selesai Hari Ini</div>
+                        <div class="metric-val" id="metric-completed-today">0</div>
+                        <div class="metric-sub" id="metric-today-sub">0 gagal • 0 dibatalkan</div>
+                    </div>
+                    <div class="metric-card success" onclick="switchView('view-stats');">
+                        <div class="metric-label">Sesi Aktif 5 Menit</div>
+                        <div class="metric-val" id="metric-sessions-active">0</div>
+                        <div class="metric-sub" id="metric-sessions-today">0 sesi unik hari ini</div>
+                    </div>
+                    <div class="metric-card warning" onclick="switchView('view-library');">
+                        <div class="metric-label">Koleksi Siap Putar</div>
+                        <div class="metric-val" id="metric-lib-ready">0</div>
+                        <div class="metric-sub" id="metric-lib-attention">0 perlu perhatian</div>
+                    </div>
+                    <div class="metric-card" onclick="switchView('view-storage');">
+                        <div class="metric-label">Penyimpanan Bebas</div>
+                        <div class="metric-val" id="metric-disk-free">0 GB</div>
+                        <div class="metric-sub" id="metric-disk-percent">0% terpakai</div>
+                    </div>
+                </div>
+
+                <!-- Daily Activity Chart & Health Subsystems -->
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+                    <div class="dashboard-section">
+                        <div class="section-header-row">
+                            <h3 class="section-title">Aktivitas Unduhan Harian</h3>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="header-btn" onclick="loadChartDays(7);">7 Hari</button>
+                                <button type="button" class="header-btn" onclick="loadChartDays(30);">30 Hari</button>
+                                <button type="button" class="header-btn" onclick="loadChartDays(90);">90 Hari</button>
+                            </div>
+                        </div>
+                        <div class="chart-bars-wrap" id="activity-chart-bars">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); border-top:1px solid var(--border); padding-top:10px;">
+                            <span>Tingkat Keberhasilan: <strong id="metric-success-rate" style="color:#10b981;">100%</strong></span>
+                            <span id="metric-rate-denominator">Denominator: 0 selesai / 0 total proses</span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-section">
+                        <h3 class="section-title">Status Subsistem Server</h3>
+                        <div style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem;" id="subsystem-health-list">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. VIEW PROSES AKTIF -->
+            <section class="view-panel" id="view-active-jobs">
+                <div class="dashboard-section">
+                    <div class="section-header-row">
+                        <div>
+                            <h3 class="section-title">Antrean & Worker Unduhan Aktif</h3>
+                            <p style="color:var(--text-muted); font-size:0.8rem;">Monitor real-time progress, kecepatan, ETA, dan heartbeat proses.</p>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <label style="font-size:0.82rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="chk-maintenance-toggle">
+                                Mode Pemeliharaan (Hentikan Tugas Baru)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Pekerjaan</th>
+                                    <th>Domain</th>
+                                    <th>Tahap</th>
+                                    <th>Progres</th>
+                                    <th>Kecepatan / ETA</th>
+                                    <th>Terakhir Aktif</th>
+                                    <th>Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="active-jobs-tbody">
+                                <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Tidak ada proses unduhan aktif saat ini.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. VIEW RIWAYAT DOWNLOAD -->
+            <section class="view-panel" id="view-history">
+                <div class="dashboard-section">
+                    <div class="section-header-row">
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; flex:1;">
+                            <input type="search" id="history-search-input" class="form-input" placeholder="Cari judul, domain, atau ID..." style="max-width:280px;">
+                            <select id="history-stage-filter" class="form-select">
+                                <option value="">Semua Tahap</option>
+                                <option value="completed">Selesai</option>
+                                <option value="ready">Ready (Perpustakaan)</option>
+                                <option value="failed">Gagal</option>
+                                <option value="cancelled">Dibatalkan</option>
+                                <option value="interrupted">Terputus (Restart)</option>
+                            </select>
+                            <select id="history-target-filter" class="form-select">
+                                <option value="">Semua Target</option>
+                                <option value="download">Unduh Sementara</option>
+                                <option value="library">Perpustakaan</option>
+                            </select>
+                        </div>
+
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="header-btn" onclick="exportHistory('csv');">Ekspor CSV</button>
+                            <button type="button" class="header-btn" onclick="exportHistory('json');">Ekspor JSON</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Judul & ID</th>
+                                    <th>Sumber Domain</th>
+                                    <th>Tahap</th>
+                                    <th>Ukuran File</th>
+                                    <th>Status Fisik</th>
+                                    <th>Waktu Selesai</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
+                        <span id="history-page-info" style="font-size:0.8rem; color:var(--text-muted);">Menampilkan 0 dari 0</span>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" class="header-btn" id="btn-hist-prev" disabled>Sebelumnya</button>
+                            <button type="button" class="header-btn" id="btn-hist-next" disabled>Berikutnya</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. VIEW PENYIMPANAN -->
+            <section class="view-panel" id="view-storage">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+                    <div class="dashboard-section">
+                        <div class="metric-label">Temporary (Unduhan Sementara)</div>
+                        <div class="metric-val" id="storage-size-temp">0 MB</div>
+                        <div class="metric-sub" id="storage-path-temp" style="font-family:monospace; font-size:0.7rem;">/data/temporary</div>
+                    </div>
+                    <div class="dashboard-section">
+                        <div class="metric-label">Staging (Proses Impor)</div>
+                        <div class="metric-val" id="storage-size-staging">0 MB</div>
+                        <div class="metric-sub" id="storage-path-staging" style="font-family:monospace; font-size:0.7rem;">/data/staging</div>
+                    </div>
+                    <div class="dashboard-section">
+                        <div class="metric-label">Perpustakaan Permanen</div>
+                        <div class="metric-val" id="storage-size-library">0 MB</div>
+                        <div class="metric-sub" id="storage-path-library" style="font-family:monospace; font-size:0.7rem;">/data/library</div>
+                    </div>
+                    <div class="dashboard-section">
+                        <div class="metric-label">Trash / Karantina</div>
+                        <div class="metric-val" id="storage-size-trash">0 MB</div>
+                        <div class="metric-sub" id="storage-path-trash" style="font-family:monospace; font-size:0.7rem;">/data/trash</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <div class="section-header-row">
+                        <div>
+                            <h3 class="section-title">Inventaris Berkas Direktori Dikelola</h3>
+                            <p style="color:var(--text-muted); font-size:0.8rem;">Klasifikasi otomatis: terdaftar, berkas orphan, parsial, dan karantina.</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="button" class="header-btn" id="btn-trigger-storage-scan">Pindai Ulang Direktori</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Berkas / Folder</th>
+                                    <th>Kategori</th>
+                                    <th>Ukuran</th>
+                                    <th>Status Hubungan</th>
+                                    <th>Terakhir Diubah</th>
+                                    <th>Tindakan Aman</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storage-inventory-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Trash Management Section -->
+                <div class="dashboard-section">
+                    <h3 class="section-title">Karantina Pemulihan (Trash Items)</h3>
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Berkas</th>
+                                    <th>Ukuran</th>
+                                    <th>Dihapus Oleh</th>
+                                    <th>Waktu Hapus</th>
+                                    <th>Kedaluwarsa</th>
+                                    <th>Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trash-tbody">
+                                <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Tidak ada berkas di dalam karantina saat ini.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. VIEW PERPUSTAKAAN -->
+            <section class="view-panel" id="view-library">
+                <div class="dashboard-section">
+                    <div class="section-header-row">
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; flex:1;">
+                            <input type="search" id="lib-search-input" class="form-input" placeholder="Cari judul koleksi..." style="max-width:280px;">
+                            <select id="lib-status-filter" class="form-select">
+                                <option value="">Semua Status</option>
+                                <option value="ready">Siap Putar (Ready)</option>
+                                <option value="needs_attention">Perlu Perhatian</option>
+                            </select>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="header-btn primary" id="btn-add-lib-url">+ Tambah dari URL</button>
+                            <button type="button" class="header-btn" id="btn-import-server-file">Impor Berkas Server</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Poster</th>
+                                    <th>Judul & Tahun</th>
+                                    <th>Status</th>
+                                    <th>Berkas Terdaftar</th>
+                                    <th>Dibuat Pada</th>
+                                    <th>Kelola</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lib-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. VIEW STATISTIK PENGGUNAAN -->
+            <section class="view-panel" id="view-stats">
+                <div class="dashboard-section">
+                    <h3 class="section-title">Transparansi Metrik Pengguna & Sesi</h3>
+                    <p style="color:var(--text-secondary); font-size:0.88rem; line-height:1.6;">
+                        OmniFetch menghormati privasi dan kejujuran data analitik:<br>
+                        • <strong>Sesi Unik</strong> dihitung menggunakan hash pseudonim SHA-256 dari sesi klien anonim (bukan fingerprint pengguna atau identitas pribadi). Satu pengguna fisik dapat memiliki beberapa sesi pada peramban/perangkat yang berbeda.<br>
+                        • <strong>Pengguna Terdaftar</strong> hanya merepresentasikan akun administrator fisik pada basis data.<br>
+                        • <strong>Aktif Sekarang</strong> didasarkan pada jendela aktivitas 5 menit terakhir tanpa menghitung polling otomatis atau health-check.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 7. VIEW AUDIT LOG -->
+            <section class="view-panel" id="view-audit">
+                <div class="dashboard-section">
+                    <div class="section-header-row">
+                        <h3 class="section-title">Jejak Tindakan Administrator (Immutable Audit Trail)</h3>
+                        <input type="search" id="audit-search-input" class="form-input" placeholder="Cari aksi, user, resource..." style="max-width:260px;">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Waktu (WIB)</th>
+                                    <th>Admin</th>
+                                    <th>Tindakan</th>
+                                    <th>Tipe Sumber Daya</th>
+                                    <th>Target ID</th>
+                                    <th>IP Klien</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 8. VIEW PENGATURAN -->
+            <section class="view-panel" id="view-settings">
+                <div class="dashboard-section">
+                    <h3 class="section-title">Pengaturan Operasional Server</h3>
+                    <p style="color:var(--text-muted); font-size:0.82rem;">Konfigurasi persisten tersimpan di SQLite dengan validasi batas aman.</p>
+                    <div style="display:flex; flex-direction:column; gap:16px; max-width:680px;" id="settings-form-container">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+
+                <div class="dashboard-section" style="margin-top:20px;">
+                    <h3 class="section-title">Keamanan Akun Administrator</h3>
+                    <p style="color:var(--text-muted); font-size:0.82rem;">Perbarui kata sandi untuk akun administrator yang sedang aktif.</p>
+                    <form id="form-change-password" style="display:flex; flex-direction:column; gap:14px; max-width:420px; margin-top:12px;">
+                        <div class="form-group">
+                            <label class="form-label" for="input-old-pw">Kata Sandi Saat Ini</label>
+                            <input type="password" id="input-old-pw" class="form-input" required autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-new-pw">Kata Sandi Baru (Min. 8 karakter)</label>
+                            <input type="password" id="input-new-pw" class="form-input" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-confirm-pw">Konfirmasi Kata Sandi Baru</label>
+                            <input type="password" id="input-confirm-pw" class="form-input" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="submit" class="header-btn primary">Perbarui Kata Sandi</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Drawer Inspection Detail -->
+    <div class="drawer-backdrop" id="job-drawer-backdrop">
+        <div class="admin-drawer" id="job-drawer">
+            <div class="drawer-header">
+                <h3 id="drawer-title" style="font-size:1.1rem; font-weight:700;">Detail Pekerjaan Unduhan</h3>
+                <button type="button" class="header-btn" onclick="closeDrawer();">&times;</button>
+            </div>
+            <div class="drawer-body" id="drawer-content"></div>
+        </div>
+    </div>
+
+    <!-- Poster Replacer Modal (Section 15) -->
+    <div class="admin-modal-backdrop" id="poster-modal-backdrop">
+        <div class="admin-modal-card" style="max-width:620px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-family:'Outfit', sans-serif; font-size:1.2rem; font-weight:700;">Ganti Poster & Thumbnail Film</h3>
+                <button type="button" class="header-btn" onclick="closePosterModal();">&times;</button>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display:flex; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                <button type="button" class="header-btn active" id="tab-btn-upload" onclick="switchPosterTab('upload');">Upload Gambar</button>
+                <button type="button" class="header-btn" id="tab-btn-url" onclick="switchPosterTab('url');">URL Gambar</button>
+                <button type="button" class="header-btn" id="tab-btn-frame" onclick="switchPosterTab('frame');">Ambil Frame Video</button>
+            </div>
+
+            <!-- Type Selector: Poster 2:3 vs Backdrop 16:9 -->
+            <div class="form-group">
+                <label class="form-label">Jenis Gambar</label>
+                <select id="poster-target-type" class="form-select">
+                    <option value="poster">Poster Vertikal (2:3)</option>
+                    <option value="backdrop">Backdrop / Thumbnail Horizontal (16:9)</option>
+                </select>
+            </div>
+
+            <!-- Tab 1: Upload -->
+            <div id="tab-content-upload" style="display:flex; flex-direction:column; gap:12px;">
+                <input type="file" id="poster-file-input" class="form-input" accept="image/jpeg,image/png,image/webp">
+            </div>
+
+            <!-- Tab 2: URL -->
+            <div id="tab-content-url" style="display:none; flex-direction:column; gap:12px;">
+                <input type="url" id="poster-url-input" class="form-input" placeholder="https://example.com/poster.jpg">
+            </div>
+
+            <!-- Tab 3: Video Frame -->
+            <div id="tab-content-frame" style="display:none; flex-direction:column; gap:12px;">
+                <label class="form-label">Detik Timestamp Video: <span id="frame-ts-label">15</span> detik</label>
+                <input type="range" id="frame-ts-slider" min="5" max="3600" value="15" step="5" class="form-input">
+            </div>
+
+            <!-- Image Preview Box -->
+            <div style="background:#000; border-radius:var(--radius-sm); border:1px solid var(--border); height:220px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                <img id="poster-preview-img" src="" alt="Preview Poster" style="max-height:100%; max-width:100%; object-fit:contain; display:none;">
+                <span id="poster-preview-empty" style="color:var(--text-muted); font-size:0.85rem;">Pilih berkas atau masukkan URL untuk melihat pratinjau</span>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button type="button" class="header-btn" onclick="closePosterModal();">Batal</button>
+                <button type="button" class="header-btn primary" id="btn-save-poster">Simpan & Perbarui Poster</button>
+            </div>
+            <div id="poster-status-msg" style="font-size:0.8rem; display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Metadata Edit Modal -->
+    <div class="admin-modal-backdrop" id="meta-modal-backdrop">
+        <div class="admin-modal-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-family:'Outfit', sans-serif; font-size:1.2rem; font-weight:700;">Edit Metadata Film</h3>
+                <button type="button" class="header-btn" onclick="closeMetaModal();">&times;</button>
+            </div>
+
+            <form id="form-edit-meta" style="display:flex; flex-direction:column; gap:12px;">
+                <div class="form-group">
+                    <label class="form-label" for="meta-input-title">Judul Film</label>
+                    <input type="text" id="meta-input-title" class="form-input" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 2fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label" for="meta-input-year">Tahun Rilis</label>
+                        <input type="number" id="meta-input-year" class="form-input" placeholder="2024">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="meta-input-genres">Genre (Pisahkan koma)</label>
+                        <input type="text" id="meta-input-genres" class="form-input" placeholder="Action, Sci-Fi">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="meta-input-synopsis">Sinopsis</label>
+                    <textarea id="meta-input-synopsis" class="form-textarea" rows="4"></textarea>
+                </div>
+                <div class="form-group" style="margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+                    <label class="form-label">Trek Subtitle</label>
+                    <div id="meta-subtitle-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;"></div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="text" id="input-sub-lang" class="form-input" placeholder="Bahasa (id, en)" style="max-width:130px;">
+                        <input type="file" id="input-sub-file" accept=".vtt,.srt" style="display:none;">
+                        <button type="button" class="header-btn" id="btn-upload-sub-file">Unggah Subtitle (.vtt / .srt)</button>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                    <button type="button" class="header-btn" onclick="closeMetaModal();">Batal</button>
+                    <button type="submit" class="header-btn primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Video Preview Modal -->
+    <div class="admin-modal-backdrop" id="preview-modal-backdrop">
+        <div class="admin-modal-card" style="max-width:800px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 id="preview-video-title" style="font-size:1.1rem; font-weight:700;">Pratinjau Video</h3>
+                <button type="button" class="header-btn" onclick="closeVideoPreview();">&times;</button>
+            </div>
+            <div style="background:#000; border-radius:var(--radius-sm); overflow:hidden; aspect-ratio:16/9;">
+                <video id="preview-video-player" controls playsinline style="width:100%; height:100%;"></video>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" style="position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; pointer-events:none;"></div>
+
+    <script>
+        (function() {
+            function showToast(msg, type = 'info') {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+                const toast = document.createElement('div');
+                toast.style.padding = '12px 18px';
+                toast.style.borderRadius = '8px';
+                toast.style.fontSize = '0.85rem';
+                toast.style.fontWeight = '500';
+                toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+                toast.style.pointerEvents = 'auto';
+                toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.opacity = '0';
+                if (type === 'success') {
+                    toast.style.background = '#059669';
+                    toast.style.color = '#fff';
+                } else if (type === 'error') {
+                    toast.style.background = '#dc2626';
+                    toast.style.color = '#fff';
+                } else {
+                    toast.style.background = '#1e293b';
+                    toast.style.color = '#f8fafc';
+                    toast.style.border = '1px solid rgba(255,255,255,0.1)';
+                }
+                toast.textContent = msg;
+                container.appendChild(toast);
+                requestAnimationFrame(() => {
+                    toast.style.transform = 'translateY(0)';
+                    toast.style.opacity = '1';
+                });
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(10px)';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3500);
+            }
+            window.showToast = showToast;
+
+            let csrfToken = '';
+            let currentUser = null;
+            let currentPosterItem = null;
+            let currentPosterTab = 'upload';
+            let currentMetaItem = null;
+            let historyOffset = 0;
+            const historyLimit = 25;
+            let pollInterval = null;
+
+            async function req(path, method = 'GET', data = null) {
+                const opts = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (csrfToken && method !== 'GET') {
+                    opts.headers['X-CSRF-Token'] = csrfToken;
+                }
+                if (data) {
+                    opts.body = JSON.stringify(data);
+                }
+
+                const res = await fetch(path, opts);
+                if (res.status === 401) {
+                    showLoginScreen();
+                    throw new Error('Unauthenticated');
+                }
+                return res.json();
+            }
+
+            // Auth Check
+            async function checkAuth() {
+                try {
+                    const res = await req('/api/admin/auth/me');
+                    if (res.ok && res.user) {
+                        currentUser = res.user;
+                        csrfToken = res.csrf_token;
+                        hideLoginScreen();
+                        document.getElementById('sidebar-username').textContent = currentUser.username;
+                        document.getElementById('sidebar-avatar').textContent = currentUser.username[0].toUpperCase();
+                        initDashboard();
+                    } else {
+                        showLoginScreen();
+                    }
+                } catch {
+                    showLoginScreen();
+                }
+            }
+
+            function showLoginScreen() {
+                document.getElementById('login-screen').style.display = 'flex';
+            }
+            function hideLoginScreen() {
+                document.getElementById('login-screen').style.display = 'none';
+            }
+
+            // Login submit
+            document.getElementById('form-admin-login').onsubmit = async function(e) {
+                e.preventDefault();
+                const u = document.getElementById('login-username').value;
+                const p = document.getElementById('login-password').value;
+                const errDiv = document.getElementById('login-error-msg');
+                errDiv.style.display = 'none';
+
+                try {
+                    const res = await fetch('/api/admin/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: u, password: p })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        currentUser = data.user;
+                        csrfToken = data.csrf_token;
+                        hideLoginScreen();
+                        initDashboard();
+                    } else {
+                        errDiv.textContent = data.error || 'Login gagal';
+                        errDiv.style.display = 'block';
+                    }
+                } catch {
+                    errDiv.textContent = 'Gagal menghubungi server';
+                    errDiv.style.display = 'block';
+                }
+            };
+
+            // Logout
+            document.getElementById('btn-sidebar-logout').onclick = async function() {
+                await req('/api/admin/auth/logout', 'POST', {});
+                window.location.reload();
+            };
+
+            // View Switching
+            window.switchView = function(viewId, filterOpt = {}) {
+                document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === viewId));
+                const targetPanel = document.getElementById(viewId);
+                if (targetPanel) targetPanel.classList.add('active');
+
+                // Update Header Titles
+                const titleMap = {
+                    'view-summary': ['Ringkasan Operasional', 'Status real-time downloader, perpustakaan, dan performa server VPS'],
+                    'view-active-jobs': ['Proses Unduhan Aktif', 'Monitor antrean dan worker aktif secara langsung'],
+                    'view-history': ['Riwayat Unduhan', 'Daftar semua proses unduhan yang pernah berjalan'],
+                    'view-storage': ['Inventaris Penyimpanan', 'Klasifikasi berkas pada folder yang dikelola aplikasi'],
+                    'view-library': ['Koleksi Perpustakaan Film', 'Kelola metadata, poster, subtitle, dan validasi video'],
+                    'view-stats': ['Statistik Penggunaan', 'Transparansi metrik pengguna dan sesi'],
+                    'view-audit': ['Audit Trail Administrator', 'Jejak audit permanen tindakan operasional'],
+                    'view-settings': ['Pengaturan Operasional', 'Konfigurasi persisten dan batas ambang sistem']
+                };
+                if (titleMap[viewId]) {
+                    document.getElementById('view-title').textContent = titleMap[viewId][0];
+                    document.getElementById('view-subtitle').textContent = titleMap[viewId][1];
+                }
+
+                // Lazy load data for view
+                if (viewId === 'view-summary') loadSummary();
+                else if (viewId === 'view-active-jobs') loadActiveJobs();
+                else if (viewId === 'view-history') loadHistory(filterOpt);
+                else if (viewId === 'view-storage') loadStorage();
+                else if (viewId === 'view-library') loadLibrary();
+                else if (viewId === 'view-audit') loadAudit();
+                else if (viewId === 'view-settings') loadSettings();
+            };
+
+            document.getElementById('sidebar-nav-menu').onclick = function(e) {
+                const item = e.target.closest('.nav-item');
+                if (item && item.dataset.view) {
+                    switchView(item.dataset.view);
+                }
+            };
+
+            // Initialize Dashboard
+            function initDashboard() {
+                loadSummary();
+                startPolling();
+            }
+
+            function startPolling() {
+                if (pollInterval) clearInterval(pollInterval);
+                pollInterval = setInterval(() => {
+                    const activeView = document.querySelector('.view-panel.active');
+                    if (activeView && activeView.id === 'view-summary') loadSummary();
+                    else if (activeView && activeView.id === 'view-active-jobs') loadActiveJobs();
+                }, 10000); // 10s auto-poll
+            }
+
+            document.getElementById('btn-refresh-data').onclick = () => {
+                const activeView = document.querySelector('.view-panel.active');
+                if (activeView) switchView(activeView.id);
+            };
+
+            // 1. Load Summary
+            async function loadSummary() {
+                try {
+                    const res = await req('/api/admin/dashboard');
+                    if (!res.ok) return;
+                    const d = res.data;
+
+                    document.getElementById('metric-processing').textContent = d.jobs_processing;
+                    document.getElementById('metric-processing-sub').textContent = 
+                        `${d.processing_breakdown.downloading} mengunduh • ${d.processing_breakdown.validating} validasi • ${d.processing_breakdown.importing} impor`;
+
+                    document.getElementById('metric-completed-today').textContent = d.today.completed;
+                    document.getElementById('metric-today-sub').textContent = 
+                        `${d.today.failed} gagal • ${d.today.cancelled} dibatalkan`;
+
+                    document.getElementById('metric-sessions-active').textContent = d.sessions.active_5min;
+                    document.getElementById('metric-sessions-today').textContent = 
+                        `${d.sessions.unique_today} sesi unik hari ini • ${d.sessions.registered_users} admin terdaftar`;
+
+                    document.getElementById('metric-lib-ready').textContent = d.library.ready;
+                    document.getElementById('metric-lib-attention').textContent = 
+                        `${d.library.needs_attention} perlu perhatian`;
+
+                    const freeGb = (d.storage.filesystem.free_bytes / (1024**3)).toFixed(1);
+                    document.getElementById('metric-disk-free').textContent = `${freeGb} GB`;
+                    document.getElementById('metric-disk-percent').textContent = 
+                        `${d.storage.filesystem.percent_used}% terpakai`;
+
+                    // Alerts
+                    const alertBox = document.getElementById('alerts-container');
+                    alertBox.innerHTML = '';
+                    (d.alerts || []).forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = `alert-banner ${a.type === 'danger' ? '' : 'warning'}`;
+                        div.innerHTML = `
+                            <div class="alert-text">
+                                <h4>${escapeHtml(a.title)}</h4>
+                                <p>${escapeHtml(a.message)}</p>
+                            </div>
+                        `;
+                        alertBox.appendChild(div);
+                    });
+
+                    // Subsystem Health
+                    const hl = document.getElementById('subsystem-health-list');
+                    hl.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Downloader (${d.health.downloader.name})</span>
+                            <span class="stage-badge ${d.health.downloader.ok ? 'ready' : 'failed'}">${d.health.downloader.ok ? d.health.downloader.version : 'Error'}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>FFmpeg & ffprobe</span>
+                            <span class="stage-badge ${d.health.ffmpeg.ok ? 'ready' : 'failed'}">${d.health.ffmpeg.ok ? 'Tersedia' : 'Tidak Ditemukan'}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Database SQLite</span>
+                            <span class="stage-badge ${d.health.database.ok ? 'ready' : 'failed'}">${(d.health.database.size_bytes / 1024).toFixed(0)} KB (WAL)</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Jellyfin Server</span>
+                            <span class="stage-badge ${d.health.jellyfin.online ? 'ready' : 'queued'}">${d.health.jellyfin.online ? 'Online' : 'Offline (Player Mandiri Aktif)'}</span>
+                        </div>
+                    `;
+
+                    document.getElementById('metric-success-rate').textContent = `${d.success_rate.rate_percent}%`;
+                    document.getElementById('metric-rate-denominator').textContent = 
+                        `Denominator: ${d.success_rate.completed} selesai dari ${d.success_rate.total_considered} total proses`;
+
+                    document.getElementById('last-updated-text').textContent = new Date().toLocaleTimeString('id-ID');
+                    loadChartDays(7);
+                } catch (err) {
+                    console.warn("Gagal load summary:", err);
+                }
+            }
+
+            // Load Activity Chart
+            window.loadChartDays = async function(days) {
+                const res = await req(`/api/admin/stats/chart?days=${days}`);
+                if (!res.ok) return;
+                const wrap = document.getElementById('activity-chart-bars');
+                wrap.innerHTML = '';
+
+                const maxVal = Math.max(1, ...res.data.series.map(s => s.total_jobs));
+                res.data.series.forEach(item => {
+                    const pct = Math.max(8, (item.total_jobs / maxVal) * 100);
+                    const col = document.createElement('div');
+                    col.className = 'chart-col';
+                    col.innerHTML = `
+                        <div class="bar-stack" style="height:${pct}%;" title="${item.date}: ${item.completed} selesai, ${item.failed} gagal, ${item.unique_sessions} sesi unik"></div>
+                        <span class="bar-label">${item.label}</span>
+                    `;
+                    wrap.appendChild(col);
+                });
+            };
+
+            // 2. Load Active Jobs
+            async function loadActiveJobs() {
+                const res = await req('/api/admin/jobs/active');
+                if (!res.ok) return;
+                const tb = document.getElementById('active-jobs-tbody');
+                tb.innerHTML = '';
+
+                document.getElementById('chk-maintenance-toggle').checked = Boolean(res.maintenance_mode);
+
+                if (res.jobs.length === 0) {
+                    tb.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:30px;">Tidak ada worker yang sedang memproses unduhan.</td></tr>';
+                    return;
+                }
+
+                let activeJobsMap = {};
+                res.jobs.forEach(j => {
+                    activeJobsMap[j.job_id] = j;
+                    const tr = document.createElement('tr');
+                    const hbSec = Math.max(0, Math.floor(Date.now()/1000 - j.heartbeat_at));
+                    tr.innerHTML = `
+                        <td>
+                            <strong>${escapeHtml(j.title || 'Media')}</strong>
+                            <div style="font-family:monospace; font-size:0.7rem; color:var(--text-muted);">${escapeHtml(j.job_id)}</div>
+                        </td>
+                        <td>${escapeHtml(j.domain || 'Direct')}</td>
+                        <td><span class="stage-badge ${escapeHtml(j.stage)}">${escapeHtml(j.stage)}</span></td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="flex:1; background:var(--bg-elevated); height:6px; border-radius:3px; overflow:hidden;">
+                                    <div style="width:${j.percent}%; background:var(--accent); height:100%;"></div>
+                                </div>
+                                <span style="font-size:0.75rem;">${j.percent.toFixed(1)}%</span>
+                            </div>
+                        </td>
+                        <td>${escapeHtml(j.speed_str || '—')} / ${escapeHtml(j.eta_str || '—')}</td>
+                        <td>${hbSec}s yang lalu</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="header-btn" data-action="drawer" data-job-id="${escapeHtml(j.job_id)}">Detail</button>
+                                <button type="button" class="header-btn" style="color:#f87171;" data-action="cancel" data-job-id="${escapeHtml(j.job_id)}">Hentikan</button>
+                            </div>
+                        </td>
+                    `;
+                    tb.appendChild(tr);
+                });
+            }
+
+            document.getElementById('active-jobs-tbody').onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const jId = btn.dataset.jobId;
+                if (btn.dataset.action === 'drawer') openJobDrawer(jId);
+                else if (btn.dataset.action === 'cancel') cancelJob(jId);
+            };
+
+            document.getElementById('chk-maintenance-toggle').onchange = async function(e) {
+                await req('/api/admin/maintenance', 'POST', { enable: e.target.checked });
+                loadActiveJobs();
+            };
+
+            window.cancelJob = async function(jobId) {
+                if (!confirm("Hentikan proses unduhan ini sekarang?")) return;
+                const res = await req('/api/admin/jobs/cancel', 'POST', { job_id: jobId });
+                if (res.ok) {
+                    showToast(res.message, 'success');
+                } else {
+                    showToast(res.error || 'Gagal', 'error');
+                }
+                loadActiveJobs();
+            };
+
+            // 3. Load History
+            async function loadHistory(filterOpt = {}) {
+                let url = `/api/admin/history?limit=${historyLimit}&offset=${historyOffset}`;
+                const st = filterOpt.stage || document.getElementById('history-stage-filter').value;
+                if (st) url += `&stage=${encodeURIComponent(st)}`;
+                const tg = document.getElementById('history-target-filter').value;
+                if (tg) url += `&target=${encodeURIComponent(tg)}`;
+                const q = document.getElementById('history-search-input').value.trim();
+                if (q) url += `&q=${encodeURIComponent(q)}`;
+
+                const res = await req(url);
+                if (!res.ok) return;
+                const tb = document.getElementById('history-tbody');
+                tb.innerHTML = '';
+
+                let historyJobsMap = {};
+                res.items.forEach(it => {
+                    historyJobsMap[it.job_id] = it;
+                    const tr = document.createElement('tr');
+                    const compTime = it.completed_at ? new Date(it.completed_at * 1000).toLocaleString('id-ID') : '—';
+                    const szMb = it.file_size ? (it.file_size / (1024*1024)).toFixed(1) + ' MB' : '—';
+                    tr.innerHTML = `
+                        <td>
+                            <strong>${escapeHtml(it.title || 'Media')}</strong>
+                            <div style="font-family:monospace; font-size:0.7rem; color:var(--text-muted);">${escapeHtml(it.job_id)}</div>
+                        </td>
+                        <td>${escapeHtml(it.domain || 'Direct')}</td>
+                        <td><span class="stage-badge ${escapeHtml(it.stage)}">${escapeHtml(it.stage)}</span></td>
+                        <td>${szMb}</td>
+                        <td>${it.file_exists ? '<span style="color:#10b981;">Tersedia</span>' : '<span style="color:#64748b;">Dibersihkan</span>'}</td>
+                        <td>${compTime}</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="header-btn" data-action="drawer" data-job-id="${escapeHtml(it.job_id)}">Detail</button>
+                                ${it.stage === 'failed' ? `<button type="button" class="header-btn" data-action="retry" data-job-id="${escapeHtml(it.job_id)}">Retry</button>` : ''}
+                            </div>
+                        </td>
+                    `;
+                    tb.appendChild(tr);
+                });
+
+                document.getElementById('history-page-info').textContent = 
+                    `Menampilkan ${res.offset + 1} - ${Math.min(res.total, res.offset + res.limit)} dari ${res.total}`;
+                document.getElementById('btn-hist-prev').disabled = (historyOffset === 0);
+                document.getElementById('btn-hist-next').disabled = (historyOffset + historyLimit >= res.total);
+            }
+
+            document.getElementById('history-tbody').onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const jId = btn.dataset.jobId;
+                if (btn.dataset.action === 'drawer') openJobDrawer(jId);
+                else if (btn.dataset.action === 'retry') retryJob(jId);
+            };
+
+            window.exportHistory = function(fmt) {
+                window.open(`/api/admin/history/export?format=${fmt}`, '_blank');
+            };
+
+            window.retryJob = async function(jobId) {
+                const newUrl = prompt("Ulangi tugas ini? (Opsional: Masukkan URL baru jika URL sebelumnya sudah kedaluwarsa):");
+                if (newUrl === null) return;
+                const res = await req('/api/admin/jobs/retry', 'POST', { job_id: jobId, new_url: newUrl.trim() || undefined });
+                if (res.ok) {
+                    showToast("Percobaan baru dimulai: " + res.new_job_id, 'success');
+                    switchView('view-active-jobs');
+                } else {
+                    showToast("Gagal retry: " + res.error, 'error');
+                }
+            };
+
+            // 4. Load Storage Inventory
+            async function loadStorage() {
+                const res = await req('/api/admin/storage/inventory');
+                if (!res.ok) return;
+                const d = res.data;
+
+                // Dir sizes
+                const dirs = (await req('/api/admin/dashboard')).data.storage.directories;
+                document.getElementById('storage-size-temp').textContent = (dirs.temporary.size_bytes / (1024*1024)).toFixed(1) + ' MB';
+                document.getElementById('storage-size-staging').textContent = (dirs.staging.size_bytes / (1024*1024)).toFixed(1) + ' MB';
+                document.getElementById('storage-size-library').textContent = (dirs.library.size_bytes / (1024*1024)).toFixed(1) + ' MB';
+                document.getElementById('storage-size-trash').textContent = (dirs.trash.size_bytes / (1024*1024)).toFixed(1) + ' MB';
+
+                const tb = document.getElementById('storage-inventory-tbody');
+                tb.innerHTML = '';
+                (d.items || []).forEach(it => {
+                    const tr = document.createElement('tr');
+                    const sz = (it.size_bytes / (1024*1024)).toFixed(2) + ' MB';
+                    const dt = it.mtime ? new Date(it.mtime * 1000).toLocaleString('id-ID') : '—';
+                    tr.innerHTML = `
+                        <td>
+                            <strong>${escapeHtml(it.name)}</strong>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">${escapeHtml(it.relative_path)}</div>
+                        </td>
+                        <td>${escapeHtml(it.category)}</td>
+                        <td>${sz}</td>
+                        <td><span class="stage-badge ${escapeHtml(it.status)}">${escapeHtml(it.status_label)}</span></td>
+                        <td>${dt}</td>
+                        <td>
+                            ${(!it.is_active && it.status !== 'trashed') ? `
+                                <button type="button" class="header-btn" style="color:#f87171;" data-action="quarantine" data-category="${escapeHtml(it.category)}" data-relpath="${escapeHtml(it.relative_path)}">Pindahkan ke Trash</button>
+                            ` : '—'}
+                        </td>
+                    `;
+                    tb.appendChild(tr);
+                });
+
+                // Load Trash
+                const trashRes = await req('/api/admin/storage/trash');
+                const trashTb = document.getElementById('trash-tbody');
+                trashTb.innerHTML = '';
+                if (trashRes.items && trashRes.items.length > 0) {
+                    trashRes.items.forEach(t => {
+                        const tr = document.createElement('tr');
+                        const sz = (t.file_size / (1024*1024)).toFixed(1) + ' MB';
+                        const delAt = new Date(t.deleted_at * 1000).toLocaleString('id-ID');
+                        const expAt = new Date(t.expires_at * 1000).toLocaleDateString('id-ID');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(t.name)}</strong></td>
+                            <td>${sz}</td>
+                            <td>${escapeHtml(t.deleted_by)}</td>
+                            <td>${delAt}</td>
+                            <td>${expAt}</td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="header-btn" data-action="restore" data-trash-id="${t.id}">Pulihkan</button>
+                                    <button type="button" class="header-btn" style="color:#f87171;" data-action="purge" data-trash-id="${t.id}">Hapus Permanen</button>
+                                </div>
+                            </td>
+                        `;
+                        trashTb.appendChild(tr);
+                    });
+                } else {
+                    trashTb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Tidak ada berkas di dalam karantina saat ini.</td></tr>';
+                }
+            }
+
+            document.getElementById('storage-inventory-tbody').onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                if (btn.dataset.action === 'quarantine') {
+                    quarantineStoragePath(btn.dataset.category, btn.dataset.relpath);
+                }
+            };
+
+            document.getElementById('trash-tbody').onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const tId = Number(btn.dataset.trashId);
+                if (btn.dataset.action === 'restore') restoreTrashItem(tId);
+                else if (btn.dataset.action === 'purge') purgeTrashItem(tId);
+            };
+
+            document.getElementById('btn-trigger-storage-scan').onclick = async function() {
+                await req('/api/admin/storage/scan', 'POST', {});
+                showToast("Pemindaian direktori dimulai.", 'info');
+                setTimeout(loadStorage, 1500);
+            };
+
+            window.quarantineStoragePath = async function(cat, relP) {
+                if (!confirm(`Pindahkan '${relP}' ke karantina (Trash)? Berkas masih dapat dipulihkan.`)) return;
+                const res = await req('/api/admin/storage/quarantine', 'POST', { category: cat, relative_path: relP });
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    loadStorage();
+                } else {
+                    showToast("Gagal: " + res.error, 'error');
+                }
+            };
+
+            window.restoreTrashItem = async function(tId) {
+                const res = await req('/api/admin/storage/restore', 'POST', { trash_id: tId });
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    loadStorage();
+                } else {
+                    showToast("Gagal: " + res.error, 'error');
+                }
+            };
+
+            window.purgeTrashItem = async function(tId) {
+                if (!confirm("Hapus permanen berkas ini dari disk? Tindakan ini tidak dapat dibatalkan!")) return;
+                const res = await req('/api/admin/storage/purge', 'POST', { trash_id: tId });
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    loadStorage();
+                } else {
+                    showToast("Gagal: " + res.error, 'error');
+                }
+            };
+
+            // 5. Load Library
+            let libraryItemsMap = {};
+            async function loadLibrary() {
+                const q = document.getElementById('lib-search-input').value.trim();
+                const st = document.getElementById('lib-status-filter').value;
+                let url = '/api/admin/library/items?limit=100';
+                if (q) url += `&q=${encodeURIComponent(q)}`;
+                if (st) url += `&status=${encodeURIComponent(st)}`;
+
+                const res = await req(url);
+                if (!res.ok) return;
+                const tb = document.getElementById('lib-tbody');
+                tb.innerHTML = '';
+                libraryItemsMap = {};
+
+                res.items.forEach(it => {
+                    libraryItemsMap[it.id] = it;
+                    const tr = document.createElement('tr');
+                    const posterUrl = `/api/library/poster/${it.id}?t=${Date.now()}`;
+                    const filesCount = (it.files || []).length;
+                    tr.innerHTML = `
+                        <td style="width:50px;">
+                            <img src="${posterUrl}" loading="lazy" style="width:40px; aspect-ratio:2/3; object-fit:cover; border-radius:4px; display:block;" onerror="this.onerror=null; this.src='/favicon-192.png';">
+                        </td>
+                        <td>
+                            <strong>${escapeHtml(it.title)}</strong>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">${it.year || '—'} • ${escapeHtml(it.genres || 'Koleksi Film')}</div>
+                        </td>
+                        <td><span class="stage-badge ${escapeHtml(it.status)}">${escapeHtml(it.status)}</span></td>
+                        <td>${filesCount} berkas media</td>
+                        <td>${new Date(it.created_at * 1000).toLocaleDateString('id-ID')}</td>
+                        <td>
+                            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                                <button type="button" class="header-btn" data-action="preview" data-id="${it.id}">Preview</button>
+                                <button type="button" class="header-btn" data-action="edit" data-id="${it.id}">Edit</button>
+                                <button type="button" class="header-btn" data-action="poster" data-id="${it.id}">Ganti Poster</button>
+                                <button type="button" class="header-btn" style="color:#f87171;" data-action="delete" data-id="${it.id}">Hapus</button>
+                            </div>
+                        </td>
+                    `;
+                    tb.appendChild(tr);
+                });
+            }
+
+            document.getElementById('lib-tbody').onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const id = Number(btn.dataset.id);
+                const it = libraryItemsMap[id];
+                if (!it) return;
+                const action = btn.dataset.action;
+                if (action === 'preview') openVideoPreview(id, it.title);
+                else if (action === 'edit') openMetaModal(id);
+                else if (action === 'poster') openPosterModal(id);
+                else if (action === 'delete') deleteLibraryItem(id, it.title);
+            };
+
+            window.openVideoPreview = function(itemId, title) {
+                document.getElementById('preview-video-title').textContent = title;
+                const v = document.getElementById('preview-video-player');
+                v.src = `/api/library/stream/${itemId}`;
+                document.getElementById('preview-modal-backdrop').classList.add('open');
+                v.play().catch(() => {});
+            };
+
+            window.closeVideoPreview = function() {
+                const v = document.getElementById('preview-video-player');
+                v.pause();
+                v.src = '';
+                document.getElementById('preview-modal-backdrop').classList.remove('open');
+            };
+
+            window.deleteLibraryItem = async function(itemId, title) {
+                const delFiles = confirm(`Hapus '${title}'?\n\nKlik OK untuk menghapus koleksi beserta memindahkan berkas fisik ke Karantina (Trash).\nKlik Cancel untuk membatalkan.`);
+                if (!delFiles) return;
+
+                const res = await req('/api/admin/library/delete', 'POST', { item_id: itemId, delete_files: true, move_to_trash: true });
+                if (res.success) {
+                    alert("Koleksi berhasil dihapus.");
+                    loadLibrary();
+                } else {
+                    alert("Gagal menghapus: " + (res.error || res.partial_error));
+                }
+            };
+
+            // Poster Replacer Modal (Section 15)
+            window.openPosterModal = function(itemId) {
+                currentPosterItem = itemId;
+                document.getElementById('poster-preview-img').style.display = 'none';
+                document.getElementById('poster-preview-empty').style.display = 'block';
+                document.getElementById('poster-status-msg').style.display = 'none';
+                document.getElementById('poster-file-input').value = '';
+                document.getElementById('poster-url-input').value = '';
+                switchPosterTab('upload');
+                document.getElementById('poster-modal-backdrop').classList.add('open');
+            };
+
+            window.closePosterModal = function() {
+                document.getElementById('poster-modal-backdrop').classList.remove('open');
+            };
+
+            window.switchPosterTab = function(tab) {
+                currentPosterTab = tab;
+                document.getElementById('tab-btn-upload').classList.toggle('active', tab === 'upload');
+                document.getElementById('tab-btn-url').classList.toggle('active', tab === 'url');
+                document.getElementById('tab-btn-frame').classList.toggle('active', tab === 'frame');
+
+                document.getElementById('tab-content-upload').style.display = tab === 'upload' ? 'flex' : 'none';
+                document.getElementById('tab-content-url').style.display = tab === 'url' ? 'flex' : 'none';
+                document.getElementById('tab-content-frame').style.display = tab === 'frame' ? 'flex' : 'none';
+            };
+
+            document.getElementById('poster-file-input').onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const img = document.getElementById('poster-preview-img');
+                        img.src = evt.target.result;
+                        img.style.display = 'block';
+                        document.getElementById('poster-preview-empty').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            document.getElementById('frame-ts-slider').oninput = function(e) {
+                document.getElementById('frame-ts-label').textContent = e.target.value;
+            };
+
+            document.getElementById('btn-save-poster').onclick = async function() {
+                if (!currentPosterItem) return;
+                const targetType = document.getElementById('poster-target-type').value;
+                const msgBox = document.getElementById('poster-status-msg');
+                msgBox.style.display = 'none';
+
+                let endpoint = '';
+                let payload = { item_id: currentPosterItem, target_type: targetType };
+
+                if (currentPosterTab === 'upload') {
+                    const img = document.getElementById('poster-preview-img');
+                    if (!img.src || img.src.startsWith('http')) {
+                        alert("Pilih berkas gambar terlebih dahulu");
+                        return;
+                    }
+                    endpoint = '/api/admin/library/poster/upload';
+                    payload.image_base64 = img.src;
+                } else if (currentPosterTab === 'url') {
+                    const u = document.getElementById('poster-url-input').value.trim();
+                    if (!u) {
+                        alert("Masukkan URL gambar");
+                        return;
+                    }
+                    endpoint = '/api/admin/library/poster/url';
+                    payload.image_url = u;
+                } else if (currentPosterTab === 'frame') {
+                    endpoint = '/api/admin/library/poster/frame';
+                    payload.timestamp_seconds = parseFloat(document.getElementById('frame-ts-slider').value);
+                }
+
+                msgBox.textContent = "Menyimpan dan memproses gambar...";
+                msgBox.style.color = "var(--text-secondary)";
+                msgBox.style.display = "block";
+
+                const res = await req(endpoint, 'POST', payload);
+                if (res.success) {
+                    msgBox.textContent = res.message;
+                    msgBox.style.color = "#10b981";
+                    setTimeout(() => {
+                        closePosterModal();
+                        loadLibrary();
+                    }, 1000);
+                } else {
+                    msgBox.textContent = res.error || "Gagal mengganti poster";
+                    msgBox.style.color = "#f87171";
+                }
+            };
+
+            // Metadata Modal & Subtitle Management
+            window.openMetaModal = async function(itemId) {
+                currentMetaItem = itemId;
+                try {
+                    const res = await req(`/api/admin/library/item?id=${itemId}`);
+                    if (!res || !res.ok || !res.item) return;
+                    const it = res.item;
+                    const tInput = document.getElementById('meta-input-title');
+                    if (tInput) tInput.value = it.title || '';
+                    const yInput = document.getElementById('meta-input-year');
+                    if (yInput) yInput.value = it.year || '';
+                    const gInput = document.getElementById('meta-input-genres');
+                    if (gInput) gInput.value = it.genres || '';
+                    const sInput = document.getElementById('meta-input-synopsis');
+                    if (sInput) sInput.value = it.synopsis || '';
+
+                    const posterImg = document.getElementById('meta-preview-poster');
+                    if (posterImg) posterImg.src = `/api/library/poster/${itemId}?t=${Date.now()}`;
+                    const backdropImg = document.getElementById('meta-preview-backdrop');
+                    if (backdropImg) backdropImg.src = `/api/library/backdrop/${itemId}?t=${Date.now()}`;
+
+                    await loadSubtitles(itemId);
+                } catch (e) {
+                    console.error('Error opening meta modal:', e);
+                }
+                const backdropEl = document.getElementById('meta-modal-backdrop');
+                if (backdropEl) backdropEl.classList.add('open');
+            };
+
+            async function loadSubtitles(itemId) {
+                const list = document.getElementById('meta-subtitle-list');
+                if (!list) return;
+                list.innerHTML = '';
+                try {
+                    const res = await req(`/api/admin/library/subtitles?item_id=${itemId}`);
+                    if (!res || !res.ok || !res.subtitles || res.subtitles.length === 0) {
+                        list.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted);">Belum ada trek subtitle terdaftar.</span>';
+                        return;
+                    }
+                    res.subtitles.forEach(sub => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.style.display = 'flex';
+                        itemDiv.style.justifyContent = 'space-between';
+                        itemDiv.style.alignItems = 'center';
+                        itemDiv.style.background = 'var(--bg-elevated)';
+                        itemDiv.style.padding = '6px 10px';
+                        itemDiv.style.borderRadius = 'var(--radius-sm)';
+                        itemDiv.style.fontSize = '0.8rem';
+
+                        const info = document.createElement('div');
+                        const lang = escapeHtml((sub.language || sub.subtitle_lang || 'und').toUpperCase());
+                        const fName = escapeHtml(sub.file_name || (sub.file_path ? sub.file_path.split('/').pop() : 'subtitle.vtt'));
+                        info.innerHTML = `<strong>${lang}</strong>: ${fName} ${sub.is_default ? '<span class="stage-badge ready" style="font-size:0.65rem; padding:1px 6px;">DEFAULT</span>' : ''}`;
+
+                        const actions = document.createElement('div');
+                        actions.style.display = 'flex';
+                        actions.style.gap = '6px';
+
+                        if (!sub.is_default) {
+                            const btnDef = document.createElement('button');
+                            btnDef.type = 'button';
+                            btnDef.className = 'header-btn';
+                            btnDef.style.fontSize = '0.7rem';
+                            btnDef.style.padding = '2px 6px';
+                            btnDef.textContent = 'Jadikan Default';
+                            btnDef.onclick = async () => {
+                                const r = await req('/api/admin/library/subtitles/default', 'POST', { item_id: itemId, file_id: sub.id });
+                                if (r && r.success) { showToast(r.message, 'success'); loadSubtitles(itemId); }
+                                else showToast((r && r.error) || 'Gagal mengubah default', 'error');
+                            };
+                            actions.appendChild(btnDef);
+                        }
+
+                        const btnDel = document.createElement('button');
+                        btnDel.type = 'button';
+                        btnDel.className = 'header-btn';
+                        btnDel.style.fontSize = '0.7rem';
+                        btnDel.style.padding = '2px 6px';
+                        btnDel.style.color = '#f87171';
+                        btnDel.textContent = 'Hapus';
+                        btnDel.onclick = async () => {
+                            if (!confirm(`Hapus subtitle ${lang}?`)) return;
+                            const r = await req('/api/admin/library/subtitles/delete', 'POST', { item_id: itemId, file_id: sub.id });
+                            if (r && r.success) { showToast(r.message, 'success'); loadSubtitles(itemId); }
+                            else showToast((r && r.error) || 'Gagal menghapus subtitle', 'error');
+                        };
+                        actions.appendChild(btnDel);
+
+                        itemDiv.appendChild(info);
+                        itemDiv.appendChild(actions);
+                        list.appendChild(itemDiv);
+                    });
+                } catch (err) {
+                    console.error('Error loading subtitles:', err);
+                    list.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted);">Gagal memuat subtitle.</span>';
+                }
+            }
+
+            document.getElementById('btn-upload-sub-file').onclick = function() {
+                document.getElementById('input-sub-file').click();
+            };
+
+            document.getElementById('input-sub-file').onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file || !currentMetaItem) return;
+                const lang = (document.getElementById('input-sub-lang').value.trim() || 'id').toLowerCase();
+                const reader = new FileReader();
+                reader.onload = async function(evt) {
+                    const b64 = evt.target.result;
+                    const res = await req('/api/admin/library/subtitles/upload', 'POST', {
+                        item_id: currentMetaItem,
+                        language: lang,
+                        subtitle_base64: b64,
+                        filename: file.name,
+                        is_default: false
+                    });
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        document.getElementById('input-sub-file').value = '';
+                        loadSubtitles(currentMetaItem);
+                    } else {
+                        showToast(res.error || 'Gagal mengunggah subtitle', 'error');
+                    }
+                };
+                reader.readAsDataURL(file);
+            };
+
+            window.closeMetaModal = function() {
+                document.getElementById('meta-modal-backdrop').classList.remove('open');
+            };
+
+            document.getElementById('form-edit-meta').onsubmit = async function(e) {
+                e.preventDefault();
+                const payload = {
+                    item_id: currentMetaItem,
+                    title: document.getElementById('meta-input-title').value,
+                    year: document.getElementById('meta-input-year').value,
+                    genres: document.getElementById('meta-input-genres').value,
+                    synopsis: document.getElementById('meta-input-synopsis').value
+                };
+                const res = await req('/api/admin/library/update', 'POST', payload);
+                if (res.success) {
+                    showToast(res.message || "Metadata berhasil diperbarui", 'success');
+                    closeMetaModal();
+                    loadLibrary();
+                } else {
+                    showToast("Gagal memperbarui: " + (res.error || 'Error'), 'error');
+                }
+            };
+
+            // Drawer Detail
+            window.openJobDrawer = async function(jobId) {
+                const res = await req(`/api/admin/jobs/diagnose?job_id=${jobId}`);
+                if (!res.ok) return;
+                const j = res.diagnostic;
+                const content = document.getElementById('drawer-content');
+                document.getElementById('drawer-title').textContent = j.title || 'Detail Pekerjaan';
+
+                content.innerHTML = `
+                    <div style="background:var(--bg-card); padding:16px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <span class="stage-badge ${j.stage}">${j.stage}</span>
+                            <span style="font-size:0.8rem; color:var(--text-muted);">${j.domain || 'Direct'}</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(j.status_message || j.status)}</p>
+                        <div style="margin-top:12px; font-size:0.75rem; color:var(--text-muted); font-family:monospace;">
+                            ID: ${j.job_id || j.id}<br>
+                            Sesi: ${j.owner_pseudonym || j.owner_session_pseudonym}<br>
+                            Dibuat: ${new Date(j.created_at * 1000).toLocaleString('id-ID')}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 style="font-size:0.9rem; margin-bottom:8px;">Timeline Perubahan Status</h4>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${(j.timeline || []).map(t => `
+                                <div style="display:flex; gap:10px; font-size:0.8rem; border-left:2px solid var(--border); padding-left:10px;">
+                                    <span style="color:var(--text-muted); font-size:0.75rem;">${new Date(t.time * 1000).toLocaleTimeString('id-ID')}</span>
+                                    <span><strong style="color:var(--accent);">${t.stage}:</strong> ${escapeHtml(t.message || '')}</span>
+                                </div>
+                            `).join('') || '<p style="font-size:0.8rem; color:var(--text-muted);">Belum ada timeline.</p>'}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 style="font-size:0.9rem; margin-bottom:8px;">Log Aktivitas Terakhir</h4>
+                        <pre style="background:#000; padding:12px; border-radius:var(--radius-sm); font-size:0.75rem; max-height:220px; overflow-y:auto; color:#a5b4fc; font-family:monospace;">${(j.logs || []).join('\n') || 'Belum ada log.'}</pre>
+                    </div>
+                `;
+                document.getElementById('job-drawer-backdrop').classList.add('open');
+            };
+
+            window.closeDrawer = function() {
+                document.getElementById('job-drawer-backdrop').classList.remove('open');
+            };
+
+            // 7. Load Audit
+            async function loadAudit() {
+                const q = document.getElementById('audit-search-input').value.trim();
+                let url = '/api/admin/audit?limit=50';
+                if (q) url += `&q=${encodeURIComponent(q)}`;
+
+                const res = await req(url);
+                if (!res.ok) return;
+                const tb = document.getElementById('audit-tbody');
+                tb.innerHTML = '';
+
+                res.items.forEach(a => {
+                    const tr = document.createElement('tr');
+                    const dt = new Date(a.timestamp * 1000).toLocaleString('id-ID');
+                    tr.innerHTML = `
+                        <td style="font-size:0.75rem;">${dt}</td>
+                        <td><strong>${escapeHtml(a.username)}</strong></td>
+                        <td><span style="font-family:monospace; color:var(--accent);">${escapeHtml(a.action)}</span></td>
+                        <td>${escapeHtml(a.resource_type || '—')}</td>
+                        <td style="font-family:monospace; font-size:0.75rem;">${escapeHtml(a.resource_id || '—')}</td>
+                        <td style="font-size:0.75rem;">${escapeHtml(a.ip_address || '—')}</td>
+                        <td><span class="stage-badge ${a.status === 'success' ? 'ready' : 'failed'}">${a.status}</span></td>
+                    `;
+                    tb.appendChild(tr);
+                });
+            }
+
+            // 8. Load Settings
+            async function loadSettings() {
+                const res = await req('/api/admin/settings');
+                if (!res.ok) return;
+                const c = document.getElementById('settings-form-container');
+                c.innerHTML = '';
+
+                Object.keys(res.settings).forEach(key => {
+                    const s = res.settings[key];
+                    const div = document.createElement('div');
+                    div.className = 'form-group';
+                    div.style.background = 'var(--bg-elevated)';
+                    div.style.padding = '14px 18px';
+                    div.style.borderRadius = 'var(--radius-sm)';
+                    div.style.border = '1px solid var(--border)';
+
+                    if (s.type === 'bool') {
+                        const row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.justifyContent = 'space-between';
+                        row.style.alignItems = 'center';
+
+                        const textDiv = document.createElement('div');
+                        const lbl = document.createElement('div');
+                        lbl.className = 'form-label';
+                        lbl.textContent = s.label;
+                        const desc = document.createElement('p');
+                        desc.style.fontSize = '0.78rem';
+                        desc.style.color = 'var(--text-muted)';
+                        desc.textContent = s.description;
+                        textDiv.appendChild(lbl);
+                        textDiv.appendChild(desc);
+
+                        const chk = document.createElement('input');
+                        chk.type = 'checkbox';
+                        chk.checked = !!s.value;
+                        chk.addEventListener('change', () => saveSetting(key, chk.checked));
+
+                        row.appendChild(textDiv);
+                        row.appendChild(chk);
+                        div.appendChild(row);
+                    } else {
+                        const lbl = document.createElement('div');
+                        lbl.className = 'form-label';
+                        lbl.textContent = s.label;
+                        const desc = document.createElement('p');
+                        desc.style.fontSize = '0.78rem';
+                        desc.style.color = 'var(--text-muted)';
+                        desc.style.marginBottom = '8px';
+                        desc.textContent = s.description;
+
+                        const row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.gap = '10px';
+
+                        const inp = document.createElement('input');
+                        inp.type = s.type === 'int' ? 'number' : 'text';
+                        inp.className = 'form-input';
+                        inp.value = s.value;
+                        inp.style.flex = '1';
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'header-btn primary';
+                        btn.textContent = 'Simpan';
+                        btn.addEventListener('click', () => saveSetting(key, inp.value));
+
+                        row.appendChild(inp);
+                        row.appendChild(btn);
+                        div.appendChild(lbl);
+                        div.appendChild(desc);
+                        div.appendChild(row);
+                    }
+                    c.appendChild(div);
+                });
+            }
+
+            window.saveSetting = async function(key, val) {
+                const res = await req('/api/admin/settings/update', 'POST', { key: key, value: val });
+                if (res.ok) {
+                    showToast(res.message || "Pengaturan disimpan", 'success');
+                } else {
+                    showToast("Gagal: " + (res.error || 'Error'), 'error');
+                }
+            };
+
+            // Password change form
+            const pwForm = document.getElementById('form-change-password');
+            if (pwForm) {
+                pwForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    const oldPw = document.getElementById('input-old-pw').value;
+                    const newPw = document.getElementById('input-new-pw').value;
+                    const confPw = document.getElementById('input-confirm-pw').value;
+                    if (newPw !== confPw) {
+                        showToast("Konfirmasi kata sandi baru tidak cocok", 'error');
+                        return;
+                    }
+                    if (newPw.length < 8) {
+                        showToast("Kata sandi baru minimal 8 karakter", 'error');
+                        return;
+                    }
+                    const res = await req('/api/admin/auth/change-password', 'POST', {
+                        old_password: oldPw,
+                        new_password: newPw
+                    });
+                    if (res.ok) {
+                        showToast(res.message || "Kata sandi berhasil diperbarui", 'success');
+                        pwForm.reset();
+                    } else {
+                        showToast(res.error || "Gagal memperbarui kata sandi", 'error');
+                    }
+                };
+            }
+
+            // Collection Actions
+            const btnAddUrl = document.getElementById('btn-add-lib-url');
+            if (btnAddUrl) {
+                btnAddUrl.onclick = async function() {
+                    const url = prompt("Masukkan URL streaming / video langsung untuk ditambahkan ke koleksi:");
+                    if (!url || !url.trim()) return;
+                    const title = prompt("Masukkan Judul Film / Video (opsional):") || '';
+                    const res = await req('/api/admin/library/add-url', 'POST', { url: url.trim(), title: title.trim() });
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        loadLibrary();
+                    } else {
+                        showToast("Gagal: " + (res.error || 'Error'), 'error');
+                    }
+                };
+            }
+
+            const btnImportServer = document.getElementById('btn-import-server-file');
+            if (btnImportServer) {
+                btnImportServer.onclick = async function() {
+                    const pth = prompt("Masukkan path berkas absolut atau relatif pada VPS:");
+                    if (!pth || !pth.trim()) return;
+                    const title = prompt("Masukkan Judul Film (opsional):") || '';
+                    const res = await req('/api/admin/library/import-file', 'POST', { file_path: pth.trim(), title: title.trim() });
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        loadLibrary();
+                    } else {
+                        showToast("Gagal: " + (res.error || 'Error'), 'error');
+                    }
+                };
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            // Kick off auth verification
+            checkAuth();
+        })();
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import json
+import time
 import mimetypes
 import shutil
 import re
@@ -21,10 +22,11 @@ LIBRARY_AUTH_TOKENS = set()
 
 class APIHandler(BaseHTTPRequestHandler):
     def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session, X-Library-Auth, Range')
-        self.send_header('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length')
+        if not self.path.startswith('/api/admin/'):
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session, X-Library-Auth, Range')
+            self.send_header('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length')
         # Security headers with media & blob support for video streaming
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
@@ -32,6 +34,15 @@ class APIHandler(BaseHTTPRequestHandler):
         super().end_headers()
 
     def is_library_authorized(self) -> bool:
+        # Check admin session (cookie or header) - valid admin session is always authorized for media
+        try:
+            from ..admin.auth import get_session_from_request
+            admin_sess = get_session_from_request(self)
+            if admin_sess:
+                return True
+        except Exception:
+            pass
+
         token = self.headers.get('X-Library-Auth', '').strip()
         if not token:
             parsed = urlparse(self.path)
@@ -44,6 +55,10 @@ class APIHandler(BaseHTTPRequestHandler):
         return hmac.compare_digest(str(token), str(config.LIBRARY_PASSWORD))
 
     def do_OPTIONS(self):
+        if self.path.startswith('/api/admin/'):
+            from ..admin.router import AdminRouter
+            if AdminRouter.handle_request(self, 'OPTIONS'):
+                return
         self.send_response(200)
         self.end_headers()
 
@@ -68,9 +83,10 @@ class APIHandler(BaseHTTPRequestHandler):
         parts = urlparse(self.path)
         path = parts.path
         
-        session = self.get_session()
-        if not session:
-            return self.send_json(401, {'error': 'Unauthorized. Missing valid X-App-Session.'})
+        if path.startswith('/api/admin/'):
+            from ..admin.router import AdminRouter
+            if AdminRouter.handle_request(self, 'POST'):
+                return
 
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length > 1024 * 1024:
@@ -84,6 +100,38 @@ class APIHandler(BaseHTTPRequestHandler):
                 data = json.loads(body) if body else {}
         except Exception:
             return self.send_json(400, {'error': 'Invalid JSON data'})
+
+        session = self.get_session()
+        if not session:
+            try:
+                from ..admin.auth import get_session_from_request
+                admin_sess = get_session_from_request(self)
+                if admin_sess:
+                    session = f"admin_{admin_sess.get('username')}"
+            except Exception:
+                pass
+
+        # Public authentication for library mode (clean browser without prior session allowed)
+        if path == '/api/library/auth':
+            provided_pw = str(data.get('password') or '').strip()
+            if hmac.compare_digest(provided_pw, str(config.LIBRARY_PASSWORD)):
+                token = secrets.token_hex(16)
+                LIBRARY_AUTH_TOKENS.add(token)
+                effective_session = session or generate_session_id()
+                library_db.record_user_activity(effective_session, 'library_auth')
+                return self.send_json(200, {
+                    'ok': True,
+                    'token': token,
+                    'session_id': effective_session,
+                    'app_session_id': effective_session,
+                    'message': 'Kata sandi benar'
+                })
+            else:
+                return self.send_json(401, {'ok': False, 'error': 'Kata sandi salah. Silakan coba lagi.'})
+
+        # All other POST endpoints require valid X-App-Session
+        if not session:
+            return self.send_json(401, {'error': 'Unauthorized. Missing valid X-App-Session.'})
 
         if path == '/api/start':
             try:
@@ -139,14 +187,9 @@ class APIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json(500, {'error': str(e)})
 
+        # Handled above
         elif path == '/api/library/auth':
-            provided_pw = str(data.get('password') or '').strip()
-            if hmac.compare_digest(provided_pw, str(config.LIBRARY_PASSWORD)):
-                token = secrets.token_hex(16)
-                LIBRARY_AUTH_TOKENS.add(token)
-                self.send_json(200, {'ok': True, 'token': token, 'message': 'Kata sandi benar'})
-            else:
-                self.send_json(401, {'ok': False, 'error': 'Kata sandi salah. Silakan coba lagi.'})
+            pass
 
         elif path == '/api/library/retry-import':
             if not self.is_library_authorized():
@@ -228,18 +271,46 @@ class APIHandler(BaseHTTPRequestHandler):
                 })
 
         elif path == '/api/library/delete':
-            if not self.is_library_authorized():
-                return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            from ..admin.auth import get_session_from_request, validate_csrf
+            from ..admin.audit import log_admin_action
+            admin_sess = get_session_from_request(self)
+            if not admin_sess:
+                return self.send_json(403, {
+                    'ok': False,
+                    'error': 'Hak menonton perpustakaan tidak memberi izin menghapus koleksi. Diperlukan hak akses Super Admin.'
+                })
+            if not admin_sess.get('is_superadmin'):
+                return self.send_json(403, {
+                    'ok': False,
+                    'error': 'Diperlukan hak peran Super Admin untuk menghapus koleksi.'
+                })
+            if not validate_csrf(self, admin_sess):
+                return self.send_json(403, {
+                    'ok': False,
+                    'error': 'Token CSRF tidak valid atau hilang.'
+                })
+
             item_id = data.get('item_id')
             delete_files = bool(data.get('delete_files', False))
             if not item_id:
                 return self.send_json(400, {'error': 'item_id wajib diisi'})
             try:
-                success = library_db.delete_library_item(int(item_id), delete_files=delete_files)
-                if success:
-                    self.send_json(200, {'ok': True, 'status': 'Item berhasil dihapus'})
+                username = admin_sess.get('username', 'admin')
+                res = library_db.delete_library_item(int(item_id), delete_files=delete_files, move_to_trash=True, deleted_by=username)
+                log_admin_action(
+                    username=username,
+                    action="library.delete_item",
+                    resource_type="library_item",
+                    resource_id=str(item_id),
+                    details=res,
+                    ip_address=self.client_address[0] if hasattr(self, 'client_address') else '127.0.0.1',
+                    status="success" if res.get('success') else "failure",
+                    user_id=admin_sess.get('user_id')
+                )
+                if res.get('success'):
+                    self.send_json(200, {'ok': True, 'status': 'Item berhasil dihapus', **res})
                 else:
-                    self.send_json(404, {'error': 'Item tidak ditemukan'})
+                    self.send_json(400, {'error': res.get('partial_error') or 'Item tidak ditemukan'})
             except Exception as e:
                 self.send_json(500, {'error': str(e)})
             
@@ -250,6 +321,16 @@ class APIHandler(BaseHTTPRequestHandler):
         parts = urlparse(self.path)
         path = parts.path
         
+        # Admin API Routes
+        if path.startswith('/api/admin/'):
+            from ..admin.router import AdminRouter
+            if AdminRouter.handle_request(self, 'GET'):
+                return
+
+        # Health & Monitoring API
+        if path in ('/api/health', '/api/ping'):
+            return self.send_json(200, {'ok': True, 'status': 'healthy', 'time': time.time()})
+
         # API Routes
         if path.startswith('/api/'):
             if path.startswith('/api/library/'):
@@ -278,6 +359,13 @@ class APIHandler(BaseHTTPRequestHandler):
                 item_id_str = path.split('/')[-1]
                 try:
                     return self.serve_library_poster(int(item_id_str))
+                except (ValueError, TypeError):
+                    return self.send_error(400, 'Invalid item ID')
+
+            if path.startswith('/api/library/backdrop/'):
+                item_id_str = path.split('/')[-1]
+                try:
+                    return self.serve_library_backdrop(int(item_id_str))
                 except (ValueError, TypeError):
                     return self.send_error(400, 'Invalid item ID')
 
@@ -629,32 +717,88 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_image_file(self, file_path: Path):
+        stat = file_path.stat()
+        etag = f'"{int(stat.st_mtime)}-{stat.st_size}"'
+        if_none_match = self.headers.get('If-None-Match', '').strip()
+        if if_none_match == etag:
+            self.send_response(304)
+            self.end_headers()
+            return
+
+        content = file_path.read_bytes()
+        mime = mimetypes.guess_type(file_path.name)[0] or 'image/jpeg'
+        self.send_response(200)
+        self.send_header('Content-Type', mime)
+        self.send_header('Content-Length', str(len(content)))
+        self.send_header('ETag', etag)
+        self.send_header('Cache-Control', 'no-cache, must-revalidate')
+        self.end_headers()
+        self.wfile.write(content)
+
     def serve_library_poster(self, item_id: int):
         item = library_db.get_library_item(item_id)
-        title = item.get('title', 'Media Film') if item else 'OmniFetch Media'
-        year = item.get('year', '') if item else ''
-        year_str = f" • {year}" if year else ""
-        
-        # Check if local image exists in item folder
+        if item and item.get('poster_path'):
+            target_img = (config.LIBRARY_ROOT / item['poster_path']).resolve()
+            if target_img.exists() and target_img.is_file():
+                return self._serve_image_file(target_img)
+
+        # Fallback to poster.* in folder
         if item:
             folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
             if folder.exists() and folder.is_dir():
-                img_files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp')]
-                if img_files:
-                    target_img = img_files[0]
-                    content = target_img.read_bytes()
-                    mime = mimetypes.guess_type(target_img.name)[0] or 'image/jpeg'
-                    self.send_response(200)
-                    self.send_header('Content-Type', mime)
-                    self.send_header('Content-Length', str(len(content)))
-                    self.send_header('Cache-Control', 'public, max-age=86400')
-                    self.end_headers()
-                    self.wfile.write(content)
-                    return
+                for ext in ('.jpg', '.jpeg', '.png', '.webp'):
+                    candidate = folder / f"poster{ext}"
+                    if candidate.exists() and candidate.is_file():
+                        return self._serve_image_file(candidate)
 
-        # Generate a premium cinematic 2:3 SVG poster card (400x600)
+        # If no custom image exists, generate SVG card
+        title = item.get('title', 'Media Film') if item else 'OmniFetch Media'
+        year = item.get('year', '') if item else ''
+        resolution = item.get('resolution') or item.get('quality') or ''
+        return self._serve_svg_poster(title, year, resolution, has_subtitles=bool(item.get('has_subtitles') if item else False))
+
+    def serve_library_backdrop(self, item_id: int):
+        item = library_db.get_library_item(item_id)
+        if item and item.get('backdrop_path'):
+            target_img = (config.LIBRARY_ROOT / item['backdrop_path']).resolve()
+            if target_img.exists() and target_img.is_file():
+                return self._serve_image_file(target_img)
+
+        # Fallback to backdrop.* in folder
+        if item:
+            folder = (config.LIBRARY_ROOT / item.get('folder_path', '')).resolve()
+            if folder.exists() and folder.is_dir():
+                for ext in ('.jpg', '.jpeg', '.png', '.webp'):
+                    candidate = folder / f"backdrop{ext}"
+                    if candidate.exists() and candidate.is_file():
+                        return self._serve_image_file(candidate)
+
+        # Fallback to poster
+        return self.serve_library_poster(item_id)
+
+    def _serve_svg_poster(self, title: str, year: Any = '', resolution: str = '', has_subtitles: bool = False):
+        year_str = f" • {year}" if year else ""
         safe_title = html.escape(title[:45] + ('...' if len(title) > 45 else ''))
-        
+
+        # Only render quality badge if known, never assume WEB-DL
+        quality_badge = ""
+        if resolution:
+            safe_q = html.escape(str(resolution))
+            quality_badge = f"""
+  <g transform="translate(24, 30)">
+    <rect width="78" height="22" rx="4" fill="rgba(15,23,42,0.85)" stroke="rgba(255,255,255,0.15)" />
+    <text x="39" y="15" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1">{safe_q}</text>
+  </g>"""
+
+        subtitle_badge = ""
+        if has_subtitles:
+            subtitle_badge = """
+  <g transform="translate(296, 30)">
+    <rect width="80" height="22" rx="4" fill="rgba(14,116,144,0.8)" stroke="rgba(6,182,212,0.4)" />
+    <text x="336" y="15" fill="#cffafe" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="0.5">SUB INDO</text>
+  </g>"""
+
         svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -673,9 +817,7 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
   </defs>
   <rect width="400" height="600" fill="url(#bg)" />
   <circle cx="200" cy="220" r="160" fill="url(#glow)" />
-  
   <path d="M40 0 V600 M360 0 V600 M0 500 H400" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
-  
   <g transform="translate(160, 180)" stroke="#818cf8" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <rect x="0" y="10" width="80" height="60" rx="6" stroke="#6366f1" fill="rgba(30,27,75,0.6)" />
     <polygon points="32,28 32,52 54,40" fill="#a5b4fc" stroke="#a5b4fc" />
@@ -684,18 +826,9 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
     <line x1="44" y1="0" x2="48" y2="10" />
     <line x1="62" y1="0" x2="66" y2="10" />
   </g>
-
   <rect width="400" height="600" fill="url(#overlay)" />
-  
-  <g transform="translate(24, 30)">
-    <rect width="78" height="22" rx="4" fill="rgba(15,23,42,0.85)" stroke="rgba(255,255,255,0.15)" />
-    <text x="39" y="15" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1">WEB-DL</text>
-  </g>
-  <g transform="translate(296, 30)">
-    <rect width="80" height="22" rx="4" fill="rgba(14,116,144,0.8)" stroke="rgba(6,182,212,0.4)" />
-    <text x="336" y="15" fill="#cffafe" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="0.5">SUB INDO</text>
-  </g>
-  
+  {quality_badge}
+  {subtitle_badge}
   <g transform="translate(24, 520)">
     <text x="0" y="0" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700">{safe_title}</text>
     <text x="0" y="24" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500">OmniFetch Cinema Studio{year_str}</text>
@@ -705,7 +838,7 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
         self.send_response(200)
         self.send_header('Content-Type', 'image/svg+xml')
         self.send_header('Content-Length', str(len(body)))
-        self.send_header('Cache-Control', 'public, max-age=3600')
+        self.send_header('Cache-Control', 'no-cache, must-revalidate')
         self.end_headers()
         self.wfile.write(body)
 
@@ -763,7 +896,11 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
 
     def serve_static(self, path: str):
         if path == '/':
-            path = '/index.html'
+            path = '/library.html'
+        elif path == '/downloader':
+            path = '/downloader.html'
+        elif path == '/admin':
+            path = '/admin.html'
         elif path == '/features':
             path = '/features.html'
             
