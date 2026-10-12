@@ -7,6 +7,7 @@ import secrets
 import hmac
 import html
 from pathlib import Path
+from typing import Optional, Dict, List, Any, Tuple
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote
 
