@@ -2,6 +2,8 @@ import json
 import mimetypes
 import shutil
 import re
+import secrets
+import hmac
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote
@@ -10,17 +12,33 @@ from ..core.security import generate_session_id, clean_url
 from ..core.job_manager import job_manager
 from ..core.storage import get_job_files, read_metadata
 from ..core import config
+from ..core import library_db
+from ..core.jellyfin import jellyfin_client
+
+LIBRARY_AUTH_TOKENS = set()
 
 class APIHandler(BaseHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-App-Session, X-Library-Auth')
         # Security headers
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Content-Security-Policy', "default-src 'self' 'unsafe-inline' https:; frame-ancestors 'none'")
         super().end_headers()
+
+    def is_library_authorized(self) -> bool:
+        token = self.headers.get('X-Library-Auth', '').strip()
+        if not token:
+            parsed = urlparse(self.path)
+            qs = parse_qs(parsed.query)
+            token = (qs.get('library_auth') or [''])[0].strip()
+        if not token:
+            return False
+        if token in LIBRARY_AUTH_TOKENS:
+            return True
+        return hmac.compare_digest(str(token), str(config.LIBRARY_PASSWORD))
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -72,7 +90,12 @@ class APIHandler(BaseHTTPRequestHandler):
                 clean_url(url.splitlines()[0])
                 
                 job = job_manager.add_job(session, data)
-                self.send_json(200, {'job_id': job.id, 'status': 'queued'})
+                self.send_json(200, {
+                    'ok': True,
+                    'job_id': job.id,
+                    'status': job.status,
+                    'target': getattr(job, 'target', 'download')
+                })
             except ValueError as e:
                 self.send_json(400, {'error': str(e)})
             except Exception as e:
@@ -109,6 +132,59 @@ class APIHandler(BaseHTTPRequestHandler):
                     self.send_json(400, {'error': 'Cookie path tidak dikonfigurasi'})
             except Exception as e:
                 self.send_json(500, {'error': str(e)})
+
+        elif path == '/api/library/auth':
+            provided_pw = str(data.get('password') or '').strip()
+            if hmac.compare_digest(provided_pw, str(config.LIBRARY_PASSWORD)):
+                token = secrets.token_hex(16)
+                LIBRARY_AUTH_TOKENS.add(token)
+                self.send_json(200, {'ok': True, 'token': token, 'message': 'Kata sandi benar'})
+            else:
+                self.send_json(401, {'ok': False, 'error': 'Kata sandi salah. Silakan coba lagi.'})
+
+        elif path == '/api/library/retry-import':
+            if not self.is_library_authorized():
+                return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            job_id = data.get('job_id')
+            if not job_id:
+                return self.send_json(400, {'error': 'job_id wajib diisi'})
+            try:
+                res = job_manager.retry_library_import(job_id, session)
+                self.send_json(200, res)
+            except ValueError as e:
+                self.send_json(400, {'error': str(e)})
+            except Exception as e:
+                self.send_json(500, {'error': str(e)})
+
+        elif path == '/api/library/retry-index':
+            if not self.is_library_authorized():
+                return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            item_id = data.get('item_id')
+            if not item_id:
+                return self.send_json(400, {'error': 'item_id wajib diisi'})
+            try:
+                res = job_manager.retry_library_indexing(int(item_id), session)
+                self.send_json(200, res)
+            except ValueError as e:
+                self.send_json(400, {'error': str(e)})
+            except Exception as e:
+                self.send_json(500, {'error': str(e)})
+
+        elif path == '/api/library/delete':
+            if not self.is_library_authorized():
+                return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
+            item_id = data.get('item_id')
+            delete_files = bool(data.get('delete_files', False))
+            if not item_id:
+                return self.send_json(400, {'error': 'item_id wajib diisi'})
+            try:
+                success = library_db.delete_library_item(int(item_id), delete_files=delete_files)
+                if success:
+                    self.send_json(200, {'ok': True, 'status': 'Item berhasil dihapus'})
+                else:
+                    self.send_json(404, {'error': 'Item tidak ditemukan'})
+            except Exception as e:
+                self.send_json(500, {'error': str(e)})
             
         else:
             self.send_json(404, {'error': 'API endpoint not found'})
@@ -122,6 +198,10 @@ class APIHandler(BaseHTTPRequestHandler):
             session = self.get_session()
             if not session:
                 return self.send_json(401, {'error': 'Unauthorized'})
+
+            if path.startswith('/api/library/'):
+                if not self.is_library_authorized():
+                    return self.send_json(401, {'ok': False, 'auth_required': True, 'error': 'Kata sandi perpustakaan diperlukan'})
 
             if path == '/api/status':
                 jobs = job_manager.get_user_jobs(session)
@@ -149,11 +229,80 @@ class APIHandler(BaseHTTPRequestHandler):
                     'job_id': job.id,
                     'status': job.status,
                     'percent': job.percent,
-                    'running': job.status in ('queued', 'downloading'),
+                    'running': job.status in ('queued', 'downloading', 'validating', 'importing', 'indexing'),
+                    'target': getattr(job, 'target', 'download'),
+                    'library_item_id': getattr(job, 'library_item_id', None),
+                    'jellyfin_item_id': getattr(job, 'jellyfin_item_id', None),
+                    'jellyfin_url': getattr(job, 'jellyfin_url', None),
                     'logs': job.logs,
                     'files': files
                 })
                 return
+
+            if path == '/api/library/status':
+                health = jellyfin_client.check_health()
+                try:
+                    if not config.LIBRARY_ROOT.exists():
+                        config.LIBRARY_ROOT.mkdir(parents=True, exist_ok=True)
+                    usage = shutil.disk_usage(config.LIBRARY_ROOT)
+                    free_bytes = usage.free
+                    total_bytes = usage.total
+                except Exception:
+                    try:
+                        usage = shutil.disk_usage(Path.cwd())
+                        free_bytes = usage.free
+                        total_bytes = usage.total
+                    except Exception:
+                        free_bytes = 0
+                        total_bytes = 0
+                try:
+                    all_items = library_db.list_library_items()
+                    counts = {
+                        'total': len(all_items),
+                        'ready': len([it for it in all_items if it.get('status') == 'ready']),
+                        'needs_attention': len([it for it in all_items if it.get('status') == 'needs_attention'])
+                    }
+                except Exception:
+                    counts = {'total': 0, 'ready': 0, 'needs_attention': 0}
+
+                return self.send_json(200, {
+                    'ok': True,
+                    'jellyfin': health,
+                    'library_root': str(config.LIBRARY_ROOT),
+                    'movies_dir': str(config.LIBRARY_MOVIES_DIR),
+                    'disk': {
+                        'free_bytes': free_bytes,
+                        'total_bytes': total_bytes,
+                        'free_gb': round(free_bytes / (1024**3), 2),
+                        'total_gb': round(total_bytes / (1024**3), 2),
+                        'percent_used': round(((total_bytes - free_bytes) / total_bytes * 100), 1) if total_bytes > 0 else 0.0
+                    },
+                    'counts': counts
+                })
+
+            if path == '/api/library/items':
+                qs = parse_qs(parts.query)
+                q = (qs.get('q') or [''])[0].strip() or None
+                st = (qs.get('status') or [''])[0].strip() or None
+                limit = int((qs.get('limit') or [50])[0])
+                offset = int((qs.get('offset') or [0])[0])
+                items = library_db.list_library_items(query=q, status=st, limit=limit, offset=offset)
+                for it in items:
+                    if it.get('jellyfin_item_id'):
+                        it['jellyfin_url'] = jellyfin_client.get_playback_web_url(it['jellyfin_item_id'])
+                return self.send_json(200, {'ok': True, 'items': items, 'total': len(items)})
+
+            if path == '/api/library/item':
+                qs = parse_qs(parts.query)
+                item_id = (qs.get('id') or [None])[0]
+                if not item_id:
+                    return self.send_json(400, {'error': 'id required'})
+                item = library_db.get_library_item(int(item_id))
+                if not item:
+                    return self.send_json(404, {'error': 'Item not found'})
+                if item.get('jellyfin_item_id'):
+                    item['jellyfin_url'] = jellyfin_client.get_playback_web_url(item['jellyfin_item_id'])
+                return self.send_json(200, {'item': item})
                 
             if path == '/api/inspect':
                 qs = parse_qs(parts.query)
@@ -313,7 +462,9 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             return self.send_error(404, 'Job not found or unauthorized')
             
         safe_path = (job.folder / filename).resolve()
-        if not str(safe_path).startswith(str(job.folder)):
+        try:
+            safe_path.relative_to(job.folder.resolve())
+        except ValueError:
             return self.send_error(403, 'Path traversal detected')
             
         if not safe_path.exists() or not safe_path.is_file():
@@ -363,8 +514,19 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
 
         safe_path = Path(config.BASE_DIR / path.lstrip('/')).resolve()
         
-        # Directory traversal protection
-        if not str(safe_path).startswith(str(config.BASE_DIR)):
+        # Directory traversal protection using strict relative_to
+        try:
+            safe_path.relative_to(config.BASE_DIR)
+        except ValueError:
+            self.send_error(403, 'Forbidden')
+            return
+
+        # Security protection: never serve database, cookies, environment file, secrets, or python code
+        blocked_names = {'cookies.txt', 'jobs_db.json', 'omnifetch-library.sqlite3'}
+        if (safe_path.name.startswith('.') and safe_path.name != '.well-known') or \
+           safe_path.suffix.lower() in ('.sqlite3', '.sqlite', '.db', '.env', '.key', '.pem', '.py') or \
+           safe_path.name in blocked_names or \
+           'data' in safe_path.parts:
             self.send_error(403, 'Forbidden')
             return
             

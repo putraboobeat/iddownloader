@@ -14,3 +14,7 @@ hasil-subtitle/
 cookies*.txt
 *.log
 test_env/
+data/
+*.sqlite3
+*.sqlite3-*
+jobs_db.json

@@ -831,18 +831,36 @@ function renderJobMonitor(job) {
     const badge = $('job-badge');
     badge.className = 'meta-tag';
 
-    if (isCompleted) {
-        badge.textContent = 'Selesai';
-        badge.style.background = '#052e16';
-        badge.style.color = '#86efac';
+    const isLibrary = (job.target === 'library');
+    const btnJellyfin = $('btn-job-open-jellyfin');
+    if (btnJellyfin) {
+        if (isLibrary && (isCompleted || job.status === 'ready' || job.jellyfinUrl)) {
+            btnJellyfin.style.display = 'block';
+            btnJellyfin.onclick = () => {
+                const targetUrl = job.jellyfinUrl || 'http://localhost:8096';
+                if (chrome.tabs && chrome.tabs.create) {
+                    chrome.tabs.create({ url: targetUrl });
+                } else {
+                    window.open(targetUrl, '_blank');
+                }
+            };
+        } else {
+            btnJellyfin.style.display = 'none';
+        }
+    }
+
+    if (isCompleted || job.status === 'ready') {
+        badge.textContent = isLibrary ? 'Siap Nonton' : 'Selesai';
+        badge.style.background = isLibrary ? '#1e3a8a' : '#052e16';
+        badge.style.color = isLibrary ? '#93c5fd' : '#86efac';
         $('btn-job-stop').style.display = 'none';
         $('btn-job-retry').style.display = 'none';
-    } else if (job.downloadStatus === 'needs_verification' || job.status === 'needs_verification') {
-        badge.textContent = 'Periksa';
+    } else if (job.downloadStatus === 'needs_verification' || job.status === 'needs_verification' || job.status === 'needs_attention') {
+        badge.textContent = isLibrary ? 'Perlu Periksa' : 'Periksa';
         badge.style.background = '#431407';
         badge.style.color = '#fdba74';
         $('btn-job-stop').style.display = 'none';
-        $('btn-job-retry').style.display = 'block';
+        $('btn-job-retry').style.display = isLibrary ? 'none' : 'block';
     } else if (isFailed) {
         badge.textContent = job.downloadStatus === 'interrupted' ? 'Terputus' : 'Gagal';
         badge.style.background = '#450a0a';
@@ -862,7 +880,7 @@ function renderJobMonitor(job) {
         $('btn-job-stop').style.display = 'block';
         $('btn-job-retry').style.display = 'none';
     } else {
-        badge.textContent = 'Berjalan';
+        badge.textContent = isLibrary ? 'Memproses' : 'Berjalan';
         badge.style.background = '#3d0f19';
         badge.style.color = '#ff8fa3';
         $('btn-job-stop').style.display = 'block';
@@ -1050,11 +1068,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // === MAIN DOWNLOAD TRIGGER ===
-async function triggerDownload(isForced = false) {
+async function triggerDownload(isForced = false, targetMode = 'download', extraMeta = {}) {
     if (isSubmitting) return;
 
-    const btn = $('btn-download-main');
-    btn.disabled = true;
+    const btnMain = $('btn-download-main');
+    const btnLib = $('btn-save-library');
+    const isLibrary = targetMode === 'library';
+    const activeBtn = isLibrary ? (btnLib || btnMain) : btnMain;
+    const origSpanText = activeBtn?.querySelector('span')?.textContent || 'Unduh';
+
+    if (btnMain) btnMain.disabled = true;
+    if (btnLib) btnLib.disabled = true;
     isSubmitting = true;
     showStatus(null);
     const uncertainBox = $('uncertain-box');
@@ -1064,7 +1088,7 @@ async function triggerDownload(isForced = false) {
         // Tentukan URL target
         let targetUrl = '';
         let referer = currentTab?.url || '';
-        let mediaTitle = $('custom-name')?.value?.trim() || $('media-title')?.textContent || 'Unduhan Media';
+        let mediaTitle = extraMeta.title || $('custom-name')?.value?.trim() || $('media-title')?.textContent || 'Unduhan Media';
 
         const selectedDropdownUrl = $('media-select')?.value;
         const selectedCandidate = detectedItems.find(x => x.url === selectedDropdownUrl);
@@ -1078,14 +1102,15 @@ async function triggerDownload(isForced = false) {
 
         if (!targetUrl) {
             showStatus('error', 'Tidak ada sumber media atau URL yang terdeteksi.');
-            btn.disabled = false;
+            if (btnMain) btnMain.disabled = false;
+            if (btnLib) btnLib.disabled = false;
             isSubmitting = false;
             return;
         }
 
         // Jika sumber yang dipilih adalah gambar/foto langsung dari DOM atau URL gambar
         if (selectedCandidate && selectedCandidate.kind === 'image') {
-            btn.querySelector('span').textContent = 'Menyimpan Foto…';
+            if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = 'Menyimpan Foto…';
             const cleanFolder = sanitize(mediaTitle || 'Foto_Media');
             let ext = 'jpg';
             if (targetUrl.includes('.png')) ext = 'png';
@@ -1098,9 +1123,10 @@ async function triggerDownload(isForced = false) {
                 conflictAction: 'uniquify',
                 saveAs: false
             }, (downloadId) => {
-                btn.disabled = false;
+                if (btnMain) btnMain.disabled = false;
+                if (btnLib) btnLib.disabled = false;
                 isSubmitting = false;
-                btn.querySelector('span').textContent = 'Unduh Sekarang';
+                if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                 if (chrome.runtime.lastError || !downloadId) {
                     showStatus('error', `Gagal menyimpan foto: ${chrome.runtime.lastError?.message || 'Download ditolak browser'}`);
                 } else {
@@ -1114,10 +1140,16 @@ async function triggerDownload(isForced = false) {
         const payload = {
             urls: targetUrl,
             referer: referer,
-            media_type: selectedMediaType === 'audio' ? 'audio' : 'video'
+            media_type: selectedMediaType === 'audio' ? 'audio' : 'video',
+            target: targetMode
         };
 
         if (mediaTitle) payload.name = sanitize(mediaTitle);
+        if (extraMeta.title) payload.title = extraMeta.title;
+        if (extraMeta.year) payload.year = parseInt(extraMeta.year, 10);
+        if (isLibrary) {
+            payload.idempotency_key = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        }
 
         if (selectedMediaType === 'video') {
             payload.resolution = $('video-quality')?.value || 'best';
@@ -1138,7 +1170,7 @@ async function triggerDownload(isForced = false) {
                 payload.urls = subUrl;
                 // Coba unduh & konversi langsung di browser terlebih dahulu (instan & tanpa blokir IP VPS)
                 try {
-                    btn.querySelector('span').textContent = 'Mengunduh Subtitle…';
+                    if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = 'Mengunduh Subtitle…';
                     showStatus('loading', 'Mengunduh subtitle langsung dari browser…');
                     const subRes = await fetch(subUrl);
                     if (subRes.ok) {
@@ -1156,9 +1188,10 @@ async function triggerDownload(isForced = false) {
                                 conflictAction: 'uniquify',
                                 saveAs: false
                             }, (dlId) => {
-                                btn.disabled = false;
+                                if (btnMain) btnMain.disabled = false;
+                                if (btnLib) btnLib.disabled = false;
                                 isSubmitting = false;
-                                btn.querySelector('span').textContent = 'Unduh Sekarang';
+                                if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                                 if (!chrome.runtime.lastError && dlId) {
                                     showStatus('success', `✅ Subtitle berhasil disimpan ke ${filename}!`);
                                 }
@@ -1187,7 +1220,7 @@ async function triggerDownload(isForced = false) {
 
             // Jika berada di Instagram, ekstrak media langsung dari halaman browser agar tidak gagal di yt-dlp
             if (currentTab?.id && (currentTab?.url?.includes('instagram.com/p/') || currentTab?.url?.includes('instagram.com/reel/'))) {
-                btn.querySelector('span').textContent = 'Mengekstrak Slide Instagram…';
+                if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = 'Mengekstrak Slide Instagram…';
                 showStatus('loading', 'Membaca seluruh slide dari postingan Instagram…');
                 let igItems = (currentExtractedCarousel && currentExtractedCarousel.length > 0) ? currentExtractedCarousel : await extractInstagramMedia(currentTab.id, targetUrl);
                 if (!igItems || igItems.length === 0) {
@@ -1208,16 +1241,17 @@ async function triggerDownload(isForced = false) {
                         const ext = targetItem.type === 'video' ? 'mp4' : 'jpg';
                         const filename = `OmniFetch/${cleanFolder}/${cleanFolder}_Slide_${targetIdx + 1}.${ext}`;
 
-                        btn.querySelector('span').textContent = `Menyimpan Slide ${targetIdx + 1}…`;
+                        if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = `Menyimpan Slide ${targetIdx + 1}…`;
                         chrome.downloads.download({
                             url: targetItem.url,
                             filename: filename,
                             conflictAction: 'uniquify',
                             saveAs: false
                         }, (dlId) => {
-                            btn.disabled = false;
+                            if (btnMain) btnMain.disabled = false;
+                            if (btnLib) btnLib.disabled = false;
                             isSubmitting = false;
-                            btn.querySelector('span').textContent = 'Unduh Sekarang';
+                            if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                             if (chrome.runtime.lastError || !dlId) {
                                 showStatus('error', `Gagal menyimpan: ${chrome.runtime.lastError?.message || 'Download ditolak'}`);
                             } else {
@@ -1226,7 +1260,7 @@ async function triggerDownload(isForced = false) {
                         });
                         return;
                     } else if (isFiles) {
-                        btn.querySelector('span').textContent = `Menyimpan ${igItems.length} Slide…`;
+                        if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = `Menyimpan ${igItems.length} Slide…`;
                         let startedCount = 0;
                         for (let i = 0; i < igItems.length; i++) {
                             const it = igItems[i];
@@ -1240,9 +1274,10 @@ async function triggerDownload(isForced = false) {
                             }, () => {
                                 startedCount++;
                                 if (startedCount === igItems.length) {
-                                    btn.disabled = false;
+                                    if (btnMain) btnMain.disabled = false;
+                                    if (btnLib) btnLib.disabled = false;
                                     isSubmitting = false;
-                                    btn.querySelector('span').textContent = 'Unduh Sekarang';
+                                    if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                                     showStatus('success', `✅ Semua ${igItems.length} slide berhasil disimpan ke folder OmniFetch/${cleanFolder}/!`);
                                 }
                             });
@@ -1250,13 +1285,13 @@ async function triggerDownload(isForced = false) {
                         return;
                     } else {
                         // Paket .ZIP
-                        btn.querySelector('span').textContent = 'Menyiapkan paket ZIP…';
+                        if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = 'Menyiapkan paket ZIP…';
                         showStatus('loading', `Mengunduh ${igItems.length} slide untuk arsip .ZIP…`);
                         try {
                             const zipFiles = [];
                             for (let i = 0; i < igItems.length; i++) {
                                 const it = igItems[i];
-                                btn.querySelector('span').textContent = `Mengambil Slide ${i + 1}/${igItems.length}…`;
+                                if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = `Mengambil Slide ${i + 1}/${igItems.length}…`;
                                 const resp = await fetch(it.url);
                                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                                 const buf = await resp.arrayBuffer();
@@ -1266,7 +1301,7 @@ async function triggerDownload(isForced = false) {
                                     data: new Uint8Array(buf)
                                 });
                             }
-                            btn.querySelector('span').textContent = 'Membuat file .ZIP…';
+                            if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = 'Membuat file .ZIP…';
                             const zipBlob = createZipBlob(zipFiles);
                             const zipUrl = URL.createObjectURL(zipBlob);
                             const zipFilename = `OmniFetch/${cleanFolder}/${cleanFolder}.zip`;
@@ -1277,9 +1312,10 @@ async function triggerDownload(isForced = false) {
                                 conflictAction: 'uniquify',
                                 saveAs: false
                             }, (dlId) => {
-                                btn.disabled = false;
+                                if (btnMain) btnMain.disabled = false;
+                                if (btnLib) btnLib.disabled = false;
                                 isSubmitting = false;
-                                btn.querySelector('span').textContent = 'Unduh Sekarang';
+                                if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                                 if (chrome.runtime.lastError || !dlId) {
                                     showStatus('error', `Gagal membuat ZIP: ${chrome.runtime.lastError?.message || 'Download ditolak'}`);
                                 } else {
@@ -1298,9 +1334,10 @@ async function triggerDownload(isForced = false) {
                                     conflictAction: 'uniquify'
                                 });
                             }
-                            btn.disabled = false;
+                            if (btnMain) btnMain.disabled = false;
+                            if (btnLib) btnLib.disabled = false;
                             isSubmitting = false;
-                            btn.querySelector('span').textContent = 'Unduh Sekarang';
+                            if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
                             showStatus('success', `✅ Disimpan sebagai ${igItems.length} file terpisah di OmniFetch/${cleanFolder}/.`);
                             return;
                         }
@@ -1310,7 +1347,7 @@ async function triggerDownload(isForced = false) {
         }
 
         // Pilihan arsip ZIP atau file individual untuk tipe non-gallery
-        if (selectedMediaType !== 'gallery') {
+        if (selectedMediaType !== 'gallery' && !isLibrary) {
             payload.prefer_zip = $('prefer-zip')?.checked ?? false;
         }
 
@@ -1329,7 +1366,9 @@ async function triggerDownload(isForced = false) {
             payload.mode = 'direct';
         }
 
-        btn.querySelector('span').textContent = 'Mengirim ke Server…';
+        if (activeBtn?.querySelector('span')) {
+            activeBtn.querySelector('span').textContent = isLibrary ? 'Mengirim ke Perpustakaan…' : 'Mengirim ke Server…';
+        }
 
         chrome.runtime.sendMessage({
             type: 'SEND_JOB',
@@ -1337,9 +1376,10 @@ async function triggerDownload(isForced = false) {
             title: mediaTitle,
             force: !!isForced
         }, (res) => {
-            btn.disabled = false;
+            if (btnMain) btnMain.disabled = false;
+            if (btnLib) btnLib.disabled = false;
             isSubmitting = false;
-            btn.querySelector('span').textContent = 'Unduh Sekarang';
+            if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
 
             if (chrome.runtime.lastError || !res || !res.ok) {
                 const errMsg = res?.error || chrome.runtime.lastError?.message || 'Gagal mengirim tugas.';
@@ -1348,21 +1388,22 @@ async function triggerDownload(isForced = false) {
                     uncertainBox.style.display = 'block';
                     const btnForce = $('btn-force-resubmit');
                     if (btnForce) {
-                        btnForce.onclick = () => triggerDownload(true);
+                        btnForce.onclick = () => triggerDownload(true, targetMode, extraMeta);
                     }
                 }
             } else {
                 if (uncertainBox) uncertainBox.style.display = 'none';
-                showStatus('success', '✅ Pekerjaan berhasil dikirim ke server!');
-                currentActiveJobId = res.data.job_id;
+                showStatus('success', isLibrary ? '✅ Media sedang diproses ke Perpustakaan Jellyfin!' : '✅ Pekerjaan berhasil dikirim ke server!');
+                currentActiveJobId = res.data?.job_id || res.job_id;
                 loadJobsState();
             }
         });
 
     } catch (err) {
-        btn.disabled = false;
+        if (btnMain) btnMain.disabled = false;
+        if (btnLib) btnLib.disabled = false;
         isSubmitting = false;
-        btn.querySelector('span').textContent = 'Unduh Sekarang';
+        if (activeBtn?.querySelector('span')) activeBtn.querySelector('span').textContent = origSpanText;
         showStatus('error', err.message);
     }
 }
@@ -1387,7 +1428,45 @@ if ($('btn-dismiss-job')) {
     };
 }
 
-$('btn-download-main').onclick = () => triggerDownload(false);
+if ($('btn-download-main')) {
+    $('btn-download-main').onclick = () => triggerDownload(false, 'download');
+}
+
+if ($('btn-save-library')) {
+    $('btn-save-library').onclick = () => {
+        const box = $('library-confirm-box');
+        if (box) {
+            const isVisible = box.style.display === 'block';
+            box.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                const detectedTitle = $('custom-name')?.value?.trim() || $('media-title')?.textContent || '';
+                const yearMatch = detectedTitle.match(/\b(19\d\d|20\d\d)\b/);
+                let cleanT = detectedTitle;
+                if (yearMatch) {
+                    cleanT = detectedTitle.replace(yearMatch[0], '').replace(/[\(\)\[\]]/g, '').trim();
+                }
+                if ($('lib-title-input')) $('lib-title-input').value = cleanT || detectedTitle;
+                if ($('lib-year-input')) $('lib-year-input').value = yearMatch ? yearMatch[1] : '';
+                $('lib-title-input')?.focus();
+            }
+        }
+    };
+}
+
+if ($('btn-submit-library')) {
+    $('btn-submit-library').onclick = () => {
+        const titleVal = $('lib-title-input')?.value?.trim();
+        const yearVal = $('lib-year-input')?.value?.trim();
+        if ($('library-confirm-box')) $('library-confirm-box').style.display = 'none';
+        triggerDownload(false, 'library', { title: titleVal, year: yearVal });
+    };
+}
+
+if ($('btn-cancel-library')) {
+    $('btn-cancel-library').onclick = () => {
+        if ($('library-confirm-box')) $('library-confirm-box').style.display = 'none';
+    };
+}
 $('btn-refresh').onclick = async () => {
     await refreshCandidates(true);
     loadJobsState();

@@ -16,6 +16,7 @@ def run_server():
     parser.add_argument('--vps', action='store_true')
     parser.add_argument('--port', type=int, default=0)
     parser.add_argument('--download-dir', default='')
+    parser.add_argument('--library-dir', default='')
     parser.add_argument('--cookies-path', default='')
     args, unknown = parser.parse_known_args()
     
@@ -28,6 +29,10 @@ def run_server():
         config.COOKIES_PATH = args.cookies_path
     if args.vps and args.download_dir:
         config.VPS_ROOT = Path(args.download_dir).expanduser().resolve()
+    if args.library_dir:
+        config.LIBRARY_ROOT = Path(args.library_dir).expanduser().resolve()
+        config.LIBRARY_MOVIES_DIR = config.LIBRARY_ROOT / 'Movies'
+        config.JELLYFIN_MEDIA_ROOT = str(config.LIBRARY_ROOT)
         
     server_address = ('', config.PORT)
     httpd = ThreadingHTTPServer(server_address, APIHandler)

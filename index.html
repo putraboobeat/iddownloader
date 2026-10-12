@@ -1565,6 +1565,7 @@
                 <button type="button" class="nav-link active" id="nav-universal"><svg>
                         <use href="#i-globe" />
                     </svg>Downloader Universal</button>
+                <button type="button" class="nav-link" id="nav-library"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>Perpustakaan Pribadi</button>
                 <button type="button" class="nav-link" id="nav-guide"><svg>
                         <use href="#i-book" />
                     </svg>Chrome Extension</button>
@@ -2093,6 +2094,96 @@
             </div>
         </section>
 
+        <!-- SECTION PERPUSTAKAAN PRIBADI (JELLYFIN) -->
+        <section class="card" id="section-library" hidden style="margin-bottom:24px;">
+            <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="color:#3b82f6;"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                    <h2>Perpustakaan Pribadi (Jellyfin)</h2>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="lib-jellyfin-badge" class="step" style="background:#1e3a8a; color:#93c5fd; border:1px solid #3b82f6;">Jellyfin: Memeriksa…</span>
+                    <a id="btn-open-jellyfin-global" href="#" target="_blank" class="button primary" style="background:#2563eb; border-color:#3b82f6; text-decoration:none; padding:7px 14px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+                        <span>▶️ Buka Jellyfin Web</span>
+                    </a>
+                    <button type="button" id="lib-btn-lock" class="button" style="display:none; padding:7px 12px; font-size:12px; align-items:center; gap:5px;" title="Kunci Perpustakaan">
+                        <span>🔒 Kunci</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- FORM LOGIN SANDI PERPUSTAKAAN -->
+                <div id="lib-auth-view" style="text-align:center; padding:36px 16px; max-width:420px; margin:0 auto;">
+                    <div style="width:52px; height:52px; margin:0 auto 14px; border-radius:50%; background:#1e293b; border:1px solid #334155; display:flex; align-items:center; justify-content:center; font-size:24px;">
+                        🔒
+                    </div>
+                    <h3 style="color:#f8fafc; font-size:16px; margin:0 0 6px;">Perpustakaan Pribadi Dilindungi</h3>
+                    <p style="color:#94a3b8; font-size:12px; margin:0 0 18px; line-height:1.5;">
+                        Masukkan kata sandi untuk mengakses katalog film dan status penyimpanan server.
+                    </p>
+                    <form id="lib-auth-form" style="display:flex; flex-direction:column; gap:10px;">
+                        <input type="password" id="lib-auth-input" placeholder="Masukkan sandi (1234567890)…" autocomplete="current-password" required style="padding:11px 14px; background:#000; border:1px solid #334155; color:#fff; border-radius:8px; font-size:13px; text-align:center; letter-spacing:2px;">
+                        <button type="submit" id="lib-auth-btn" class="button primary" style="background:#2563eb; border-color:#3b82f6; padding:11px 14px; font-size:13px; font-weight:700;">🔓 Buka Perpustakaan</button>
+                        <div id="lib-auth-error" style="color:#f87171; font-size:12px; margin-top:4px;" hidden></div>
+                    </form>
+                </div>
+
+                <!-- TAMPILAN UTAMA PERPUSTAKAAN (SETELAH LOGIN) -->
+                <div id="lib-main-view" style="display:none;">
+                    <div style="background:#0c1a30; border:1px solid #1e3a8a; border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+                        <div style="font-weight:700; color:#60a5fa; font-size:13px; margin-bottom:4px;">📌 Media Permanen & Kapasitas Server</div>
+                        <p style="font-size:11px; color:#cbd5e1; margin:0 0 8px 0; line-height:1.5;">
+                            Item dalam perpustakaan ini tersimpan secara <strong>permanen di server</strong> dan terbaca langsung oleh katalog Jellyfin untuk pemutaran di Android TV dan web. Berkas film dan subtitle <strong>tidak terhapus</strong> oleh kebijakan pembersihan otomatis 2 jam.
+                        </p>
+                        <div id="lib-disk-info" style="font-size:11px; color:#93c5fd; display:flex; gap:16px; flex-wrap:wrap;">
+                            <span>Kapasitas Server: Memuat…</span>
+                        </div>
+                    </div>
+
+                    <!-- FILTER & PENCARIAN -->
+                    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                        <input id="lib-search-input" placeholder="🔍 Cari judul film atau kata kunci…" style="flex:2; min-width:200px; padding:9px 12px; background:#000; border:1px solid #334155; color:#fff; border-radius:8px; font-size:12px;">
+                        <select id="lib-filter-status" style="flex:1; min-width:140px; padding:9px 12px; background:#000; border:1px solid #334155; color:#fff; border-radius:8px; font-size:12px;">
+                            <option value="">Semua Status</option>
+                            <option value="ready">Siap Ditonton</option>
+                            <option value="needs_attention">Perlu Perhatian</option>
+                            <option value="indexing">Sedang Memindai</option>
+                            <option value="importing">Sedang Mengimpor</option>
+                        </select>
+                        <button type="button" id="lib-btn-refresh" class="button" style="padding:9px 14px; font-size:12px;">🔄 Segarkan</button>
+                    </div>
+
+                    <!-- DAFTAR ITEM MEDIA -->
+                    <div id="lib-items-container" style="display:flex; flex-direction:column; gap:10px;">
+                        <div style="text-align:center; padding:30px; color:#64748b; font-size:12px;">Memuat koleksi perpustakaan…</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODAL KONFIRMASI HAPUS PERPUSTAKAAN -->
+        <div id="lib-delete-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; max-width:420px; width:90%; color:#fff; box-shadow:0 10px 40px rgba(0,0,0,0.7);">
+                <h3 style="margin:0 0 10px 0; color:#f87171; font-size:15px; display:flex; align-items:center; gap:8px;">
+                    <span>⚠️ Konfirmasi Hapus Media</span>
+                </h3>
+                <p id="lib-delete-title-desc" style="font-size:12px; color:#cbd5e1; margin-bottom:14px; line-height:1.4;">Apakah Anda yakin ingin menghapus film ini dari perpustakaan?</p>
+                <div style="margin-bottom:16px; background:#0f172a; padding:12px; border-radius:8px; border:1px solid #475569;">
+                    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:#fca5a5;">
+                        <input type="checkbox" id="lib-delete-files-checkbox" style="width:auto; margin-top:2px;">
+                        <span><strong>Hapus berkas fisik permanen dari hard disk</strong></span>
+                    </label>
+                    <div style="font-size:10px; color:#94a3b8; margin-top:4px; margin-left:22px; line-height:1.3;">
+                        Jika tidak dicentang, hanya catatan database katalog yang dihapus. Berkas video & subtitle tetap aman di folder server.
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" id="lib-delete-cancel" class="button" style="padding:8px 14px; font-size:12px;">Batal</button>
+                    <button type="button" id="lib-delete-confirm" class="button primary" style="background:#dc2626; border-color:#ef4444; padding:8px 14px; font-size:12px;">Hapus</button>
+                </div>
+            </div>
+        </div>
+
         <div class="fair-use">
             <strong>⚠️ PEMBERITAHUAN PENGGUNAAN WAJAR (FAIR USE) & HUKUM:</strong> Aplikasi OmniFetch Studio ini
             dibangun semata-mata untuk tujuan pengarsipan pribadi, penelitian, pendidikan, dan *Fair Use*. Mengunduh
@@ -2144,8 +2235,23 @@
     <script>
         const $ = id => document.getElementById(id); let first = true, lastSnapshot = null, lastUpdated = null, connected = false, progressSignature = "", progressChangedAt = Date.now();
         let appSessionId = localStorage.getItem('omni_session'); if (!appSessionId) { appSessionId = Math.random().toString(36).substring(2) + Date.now().toString(36); localStorage.setItem('omni_session', appSessionId); }
+        let libraryAuthToken = sessionStorage.getItem('omni_lib_token') || '';
         let currentJobId = null;
-        async function api(path, data) { const r = await fetch(path, { method: data === undefined ? 'GET' : 'POST', headers: { 'X-App-Session': appSessionId, 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) }); const j = await r.json(); if (!r.ok) throw Error(j.error || 'Permintaan gagal'); return j }
+        async function api(path, data) {
+            const headers = { 'X-App-Session': appSessionId, 'Content-Type': 'application/json' };
+            if (libraryAuthToken) { headers['X-Library-Auth'] = libraryAuthToken; }
+            const r = await fetch(path, { method: data === undefined ? 'GET' : 'POST', headers: headers, body: data === undefined ? undefined : JSON.stringify(data) });
+            const j = await r.json();
+            if (!r.ok) {
+                if (j.auth_required) {
+                    libraryAuthToken = '';
+                    sessionStorage.removeItem('omni_lib_token');
+                    setLibraryLockedUI(true);
+                }
+                throw Error(j.error || 'Permintaan gagal');
+            }
+            return j;
+        }
         $('form').onsubmit = async e => { e.preventDefault(); $('error').textContent = ''; $('start').disabled = true; try { const r = await api('/api/start', { url: $('url').value, mode: $('mode').value, subtitles: $('subtitles').checked, subtitle_url: $('subtitle_url').value, name: $('name').value, quality: $('quality').value, folder: $('folder').value, referer: $('referer').value, forward: $('forward').checked }); currentJobId = r.job_id; await poll() } catch (e) { $('error').textContent = e.message; $('start').disabled = false } };
         async function stopDownload() { try { await api('/api/stop', { job_id: currentJobId }); $('status').textContent = 'Menghentikan…'; await poll() } catch (e) { $('error').textContent = e.message } }
         $('stop').onclick = stopDownload; $('stop-activity').onclick = stopDownload;
@@ -2373,10 +2479,12 @@
             const isUniversal = target === 'universal';
             const isGuide = target === 'guide';
             const isStream = target === 'stream';
+            const isLibrary = target === 'library';
 
             if ($('nav-stream')) $('nav-stream').classList.toggle('active', isStream);
             if ($('nav-universal')) $('nav-universal').classList.toggle('active', isUniversal);
             if ($('nav-guide')) $('nav-guide').classList.toggle('active', isGuide);
+            if ($('nav-library')) $('nav-library').classList.toggle('active', isLibrary);
 
             if ($('hero-nav-stream')) $('hero-nav-stream').classList.toggle('active', isStream);
             if ($('hero-nav-universal')) $('hero-nav-universal').classList.toggle('active', isUniversal);
@@ -2385,9 +2493,20 @@
             if ($('card-universal')) $('card-universal').hidden = !isUniversal;
             if ($('extension-guide')) $('extension-guide').hidden = !isGuide;
             if ($('guide')) $('guide').hidden = !isGuide;
-            if ($('aside-activity')) $('aside-activity').style.display = isGuide ? 'none' : '';
+            if ($('section-library')) $('section-library').hidden = !isLibrary;
+            if ($('aside-activity')) $('aside-activity').style.display = (isGuide || isLibrary) ? 'none' : '';
 
-            if (!isGuide) {
+            if (isLibrary) {
+                if ($('hero-title')) $('hero-title').innerHTML = 'Perpustakaan Pribadi.<br><span class="gradient-text">Katalog & Player Jellyfin.</span>';
+                if ($('hero-desc')) $('hero-desc').textContent = 'Koleksi film & serial permanen yang diunduh dari browser dan siap ditonton di Android TV serta browser kapan saja.';
+                if (libraryAuthToken) {
+                    setLibraryLockedUI(false);
+                    loadLibraryStatus();
+                    loadLibraryItems();
+                } else {
+                    setLibraryLockedUI(true);
+                }
+            } else if (!isGuide) {
                 if ($('hero-title')) $('hero-title').innerHTML = isUniversal ? 'Universal Medsos.<br><span class="gradient-text">Instagram, YouTube & ZIP.</span>' : 'Satu Studio.<br><span class="gradient-text">Unduh Apapun.</span>';
                 if ($('hero-desc')) $('hero-desc').textContent = isUniversal ? 'Scan otomatis postingan Instagram Reels & Carousel, video YouTube 4K, TikTok, audio MP3, dan ribuan situs medsos dengan zero-cache engine.' : 'Solusi media cerdas untuk mengunduh film streaming HLS, Instagram Reels & Carousel foto/video, YouTube 4K, hingga ribuan media sosial secara instan.';
             }
@@ -2395,8 +2514,262 @@
         $('nav-stream').onclick = () => switchSubmenu('stream');
         $('nav-universal').onclick = () => switchSubmenu('universal');
         if ($('nav-guide')) $('nav-guide').onclick = () => switchSubmenu('guide');
+        if ($('nav-library')) $('nav-library').onclick = () => switchSubmenu('library');
         if ($('hero-nav-stream')) $('hero-nav-stream').onclick = () => switchSubmenu('stream');
         if ($('hero-nav-universal')) $('hero-nav-universal').onclick = () => switchSubmenu('universal');
+
+        // PERPUSTAKAAN PRIBADI LOGIC
+        function setLibraryLockedUI(locked) {
+            const authView = $('lib-auth-view');
+            const mainView = $('lib-main-view');
+            const btnLock = $('lib-btn-lock');
+            const authError = $('lib-auth-error');
+            if (authView) authView.style.display = locked ? 'block' : 'none';
+            if (mainView) mainView.style.display = locked ? 'none' : 'block';
+            if (btnLock) btnLock.style.display = locked ? 'none' : 'inline-flex';
+            if (authError) { authError.hidden = true; authError.textContent = ''; }
+            if (locked && $('lib-auth-input')) {
+                setTimeout(() => $('lib-auth-input').focus(), 150);
+            }
+        }
+
+        if ($('lib-auth-form')) {
+            $('lib-auth-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const pw = $('lib-auth-input').value.trim();
+                const errBox = $('lib-auth-error');
+                const btn = $('lib-auth-btn');
+                if (errBox) { errBox.hidden = true; errBox.textContent = ''; }
+                btn.disabled = true;
+                btn.textContent = 'Memverifikasi…';
+                try {
+                    const res = await api('/api/library/auth', { password: pw });
+                    if (res.ok && res.token) {
+                        libraryAuthToken = res.token;
+                        sessionStorage.setItem('omni_lib_token', res.token);
+                        $('lib-auth-input').value = '';
+                        setLibraryLockedUI(false);
+                        loadLibraryStatus();
+                        loadLibraryItems();
+                    } else {
+                        throw Error(res.error || 'Kata sandi salah.');
+                    }
+                } catch (err) {
+                    if (errBox) {
+                        errBox.hidden = false;
+                        errBox.textContent = '⚠️ ' + err.message;
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '🔓 Buka Perpustakaan';
+                }
+            };
+        }
+
+        if ($('lib-btn-lock')) {
+            $('lib-btn-lock').onclick = () => {
+                libraryAuthToken = '';
+                sessionStorage.removeItem('omni_lib_token');
+                setLibraryLockedUI(true);
+            };
+        }
+
+        let itemPendingDelete = null;
+        async function loadLibraryStatus() {
+            try {
+                const res = await api('/api/library/status');
+                if (!res.ok) return;
+                const j = res.jellyfin;
+                const badge = $('lib-jellyfin-badge');
+                const btnGlobal = $('btn-open-jellyfin-global');
+                if (badge) {
+                    if (j.healthy) {
+                        badge.style.background = '#064e3b';
+                        badge.style.color = '#6ee7b7';
+                        badge.style.borderColor = '#10b981';
+                        badge.textContent = '🟢 Jellyfin: Aktif (' + (j.server_name || 'Online') + (j.version ? ' v' + j.version : '') + ')';
+                    } else if (j.configured) {
+                        badge.style.background = '#78350f';
+                        badge.style.color = '#fde68a';
+                        badge.style.borderColor = '#f59e0b';
+                        badge.textContent = '⚠️ Jellyfin: Terputus (' + (j.error || 'Offline') + ')';
+                    } else {
+                        badge.style.background = '#1e293b';
+                        badge.style.color = '#94a3b8';
+                        badge.style.borderColor = '#475569';
+                        badge.textContent = '⚪ Jellyfin: Belum Dikonfigurasi (Katalog Lokal)';
+                    }
+                }
+                if (btnGlobal) {
+                    if (j.public_url) {
+                        btnGlobal.href = j.public_url;
+                        btnGlobal.style.display = 'inline-flex';
+                    } else {
+                        btnGlobal.style.display = 'none';
+                    }
+                }
+                const diskInfo = $('lib-disk-info');
+                if (diskInfo && res.disk) {
+                    const d = res.disk;
+                    const c = res.counts || {};
+                    const formatSize = (gb) => (gb >= 1000 ? (gb / 1024).toFixed(1) + ' TB' : gb + ' GB');
+                    const freeStr = formatSize(d.free_gb);
+                    const totalStr = formatSize(d.total_gb);
+                    const rootLabel = res.library_root ? ` • <span title="${res.library_root}" style="color:#64748b;">Lokasi: ${res.library_root}</span>` : '';
+                    diskInfo.innerHTML = `
+                        <span>💾 Penyimpanan: <strong>${freeStr}</strong> bebas dari ${totalStr} (${d.percent_used}% terpakai)${rootLabel}</span>
+                        <span>🎬 Koleksi: <strong>${c.total || 0} film</strong> (${c.ready || 0} siap nonton${c.needs_attention ? ', ' + c.needs_attention + ' perlu dicek' : ''})</span>
+                    `;
+                }
+            } catch (err) {
+                console.warn('Gagal memuat status library:', err);
+            }
+        }
+
+        async function loadLibraryItems(searchQuery, statusFilter) {
+            const container = $('lib-items-container');
+            if (!container) return;
+            const q = searchQuery !== undefined ? searchQuery : ($('lib-search-input') ? $('lib-search-input').value.trim() : '');
+            const st = statusFilter !== undefined ? statusFilter : ($('lib-filter-status') ? $('lib-filter-status').value : '');
+            
+            try {
+                let url = '/api/library/items?';
+                if (q) url += 'q=' + encodeURIComponent(q) + '&';
+                if (st) url += 'status=' + encodeURIComponent(st) + '&';
+                const res = await api(url);
+                if (!res.ok || !res.items || res.items.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:36px; background:#0b1325; border:1px dashed #1e3a8a; border-radius:10px; color:#64748b; font-size:12px;">
+                            ${q || st ? 'Tidak ditemukan item film yang sesuai filter pencarian.' : 'Belum ada film dalam perpustakaan. Buka ekstensi browser dan klik "Simpan ke Perpustakaan" pada video yang ingin disimpan.'}
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = res.items.map(it => {
+                    const statusColorMap = {
+                        'ready': { bg: '#064e3b', text: '#6ee7b7', border: '#10b981', label: '✅ Siap Ditonton' },
+                        'indexing': { bg: '#1e3a8a', text: '#93c5fd', border: '#3b82f6', label: '🔍 Memindai Katalog' },
+                        'importing': { bg: '#3b0764', text: '#d8b4fe', border: '#a855f7', label: '📦 Mengimpor Berkas' },
+                        'needs_attention': { bg: '#78350f', text: '#fde68a', border: '#f59e0b', label: '⚠️ Perlu Perhatian' }
+                    };
+                    const sc = statusColorMap[it.status] || { bg: '#1e293b', text: '#cbd5e1', border: '#475569', label: it.status };
+                    
+                    const files = it.files || [];
+                    const primaryVideo = files.find(f => f.file_type === 'video' && f.is_primary) || files.find(f => f.file_type === 'video');
+                    const subs = files.filter(f => f.file_type === 'subtitle');
+                    
+                    const sizeMb = primaryVideo && primaryVideo.size_bytes ? (primaryVideo.size_bytes / (1024*1024)).toFixed(1) + ' MB' : (it.primary_file_size ? (it.primary_file_size / (1024*1024)).toFixed(1) + ' MB' : '—');
+                    const durationStr = primaryVideo && primaryVideo.duration_seconds ? Math.floor(primaryVideo.duration_seconds / 60) + ' mnt' : (it.duration_seconds ? Math.floor(it.duration_seconds / 60) + ' mnt' : '');
+                    const resStr = primaryVideo && primaryVideo.height ? primaryVideo.height + 'p' : (it.resolution || '');
+                    const vcodec = primaryVideo && primaryVideo.codec_name ? primaryVideo.codec_name.toUpperCase() : '';
+                    const subBadge = subs.length > 0 ? `💬 Subtitle: ${subs.map(s => (s.language || 'ID').toUpperCase()).join(', ')}` : (it.has_subtitles ? '💬 Ada Subtitle' : '');
+
+                    const jellyfinBtn = it.jellyfin_url ? `
+                        <a href="${it.jellyfin_url}" target="_blank" class="button primary" style="background:#2563eb; border-color:#3b82f6; text-decoration:none; padding:7px 12px; font-size:11px; display:inline-flex; align-items:center; gap:5px;">
+                            <span>▶️ Buka di Jellyfin</span>
+                        </a>
+                    ` : '';
+
+                    const retryBtns = (it.status === 'needs_attention' || it.status === 'indexing') ? `
+                        <button type="button" class="button" onclick="retryLibraryAction('index', ${it.id})" style="padding:6px 10px; font-size:11px;">🔍 Scan Jellyfin</button>
+                        <button type="button" class="button" onclick="retryLibraryAction('import', ${it.id})" style="padding:6px 10px; font-size:11px;">🔄 Ulangi Impor</button>
+                    ` : '';
+
+                    return `
+                        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:260px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                                    <strong style="color:#f8fafc; font-size:14px;">${escapeHtml(it.title)}</strong>
+                                    ${it.year ? `<span style="color:#94a3b8; font-size:12px;">(${it.year})</span>` : ''}
+                                    <span style="background:${sc.bg}; color:${sc.text}; border:1px solid ${sc.border}; font-size:10px; padding:2px 8px; border-radius:20px; font-weight:700;">${sc.label}</span>
+                                </div>
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:11px; color:#94a3b8; margin-top:6px;">
+                                    ${resStr ? `<span style="background:#1e293b; padding:2px 6px; border-radius:4px; color:#cbd5e1;">${resStr}</span>` : ''}
+                                    ${vcodec ? `<span style="background:#1e293b; padding:2px 6px; border-radius:4px; color:#cbd5e1;">${vcodec}</span>` : ''}
+                                    ${durationStr ? `<span>⏱ ${durationStr}</span>` : ''}
+                                    <span>📦 ${sizeMb}</span>
+                                    ${subBadge ? `<span style="color:#60a5fa;">${subBadge}</span>` : ''}
+                                </div>
+                                ${it.last_error ? `<div style="font-size:11px; color:#f87171; margin-top:6px; background:#450a0a; padding:4px 8px; border-radius:4px;">Catatan: ${escapeHtml(it.last_error)}</div>` : ''}
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                ${jellyfinBtn}
+                                ${retryBtns}
+                                <button type="button" class="button" onclick="confirmDeleteLibraryItem(${it.id}, '${escapeHtml(it.title)}')" style="background:#1e293b; border-color:#334155; color:#f87171; padding:6px 10px; font-size:11px;">🗑️ Hapus</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                container.innerHTML = `<div style="color:#f87171; font-size:12px; padding:20px; text-align:center;">Gagal memuat item perpustakaan: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        window.retryLibraryAction = async function(action, itemId) {
+            try {
+                const endpoint = action === 'import' ? '/api/library/retry-import' : '/api/library/retry-index';
+                const r = await api(endpoint, { item_id: itemId });
+                alert(r.message || 'Perintah berhasil dikirim ke server.');
+                loadLibraryStatus();
+                loadLibraryItems();
+            } catch (err) {
+                alert('Gagal: ' + err.message);
+            }
+        };
+
+        window.confirmDeleteLibraryItem = function(itemId, title) {
+            itemPendingDelete = itemId;
+            const modal = $('lib-delete-modal');
+            const desc = $('lib-delete-title-desc');
+            if (desc) desc.textContent = `Apakah Anda yakin ingin menghapus film "${title}" dari perpustakaan?`;
+            if ($('lib-delete-files-checkbox')) $('lib-delete-files-checkbox').checked = false;
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        };
+
+        if ($('lib-delete-cancel')) $('lib-delete-cancel').onclick = () => {
+            const modal = $('lib-delete-modal');
+            if (modal) modal.style.display = 'none';
+            itemPendingDelete = null;
+        };
+
+        if ($('lib-delete-confirm')) $('lib-delete-confirm').onclick = async () => {
+            if (!itemPendingDelete) return;
+            const deleteFiles = $('lib-delete-files-checkbox') ? $('lib-delete-files-checkbox').checked : false;
+            try {
+                await api('/api/library/delete', { item_id: itemPendingDelete, delete_files: deleteFiles });
+                const modal = $('lib-delete-modal');
+                if (modal) modal.style.display = 'none';
+                itemPendingDelete = null;
+                loadLibraryStatus();
+                loadLibraryItems();
+            } catch (err) {
+                alert('Gagal menghapus item: ' + err.message);
+            }
+        };
+
+        if ($('lib-btn-refresh')) $('lib-btn-refresh').onclick = () => {
+            loadLibraryStatus();
+            loadLibraryItems();
+        };
+
+        let searchDebounceTimer = null;
+        if ($('lib-search-input')) $('lib-search-input').oninput = () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                loadLibraryItems();
+            }, 300);
+        };
+        if ($('lib-filter-status')) $('lib-filter-status').onchange = () => {
+            loadLibraryItems();
+        };
 
         // Deteksi otomatis jika pengguna menempelkan link Instagram/YouTube di tab film
         if ($('url')) $('url').addEventListener('input', () => {

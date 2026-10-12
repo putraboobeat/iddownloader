@@ -119,14 +119,19 @@ export class JobManager {
             const now = Date.now();
             const cleanFolder = this.sanitizeFolderName(title || 'Media Video');
 
+            const isLibrary = payload.target === 'library';
             const newJob = {
                 id: jobId,
                 sessionToken: token, // Terikat pada sesi saat pekerjaan dibuat
                 title: cleanFolder,
                 url: payload.urls || payload.url || '',
                 payload: payload,
+                target: isLibrary ? 'library' : 'download',
+                libraryItemId: payload.library_item_id || null,
+                jellyfinItemId: payload.jellyfin_item_id || null,
+                jellyfinUrl: payload.jellyfin_url || null,
                 status: 'queued',
-                stageLabel: 'Diterima server (Menunggu antrean)…',
+                stageLabel: isLibrary ? 'Diterima server (Menunggu antrean perpustakaan)…' : 'Diterima server (Menunggu antrean)…',
                 percent: 0,
                 speed: '',
                 eta: '',
@@ -278,6 +283,66 @@ export class JobManager {
                 if (parts.length >= 3) eta = parts[2].trim();
             }
 
+            // === PENANGANAN KHUSUS MODE PERPUSTAKAAN ===
+            if (job.target === 'library' || data.target === 'library') {
+                jobs[jobId].target = 'library';
+                if (data.library_item_id) jobs[jobId].libraryItemId = data.library_item_id;
+                if (data.jellyfin_item_id) jobs[jobId].jellyfinItemId = data.jellyfin_item_id;
+                if (data.jellyfin_url) jobs[jobId].jellyfinUrl = data.jellyfin_url;
+
+                if (serverStatus === 'queued') {
+                    stageLabel = 'Diterima server (Menunggu antrean perpustakaan)…';
+                } else if (serverStatus === 'downloading' || serverStatus.includes('Mengunduh') || serverStatus.includes('Menghubungi')) {
+                    const speedEtaText = [speed, eta].filter(Boolean).join(' | ');
+                    stageLabel = `Mengunduh (${percent}%${speedEtaText ? ' • ' + speedEtaText : ''})`;
+                } else if (serverStatus === 'validating') {
+                    stageLabel = 'Memeriksa media…';
+                    percent = 90;
+                } else if (serverStatus === 'importing') {
+                    stageLabel = 'Memasukkan ke perpustakaan Jellyfin…';
+                    percent = 95;
+                } else if (serverStatus === 'indexing') {
+                    stageLabel = 'Memindai katalog Jellyfin…';
+                    percent = 98;
+                } else if (serverStatus === 'ready') {
+                    percent = 100;
+                    jobs[jobId].status = 'ready';
+                    jobs[jobId].percent = 100;
+                    jobs[jobId].stageLabel = 'Siap ditonton di Jellyfin!';
+                    jobs[jobId].logs = data.logs || job.logs;
+                    jobs[jobId].updatedAt = Date.now();
+                    await this.saveJobs(jobs);
+                    return; // Selesai, jangan simpan lokal ke browser
+                } else if (serverStatus === 'needs_attention') {
+                    jobs[jobId].status = 'needs_attention';
+                    jobs[jobId].stageLabel = 'Tersimpan permanen di server (Menunggu pemindaian Jellyfin)';
+                    jobs[jobId].logs = data.logs || job.logs;
+                    jobs[jobId].updatedAt = Date.now();
+                    await this.saveJobs(jobs);
+                    return;
+                } else if (serverStatus === 'failed') {
+                    let lastLog = (data.logs && data.logs.length > 0) ? data.logs[data.logs.length - 1] : 'Gagal memproses ke perpustakaan';
+                    jobs[jobId].status = 'failed';
+                    jobs[jobId].stageLabel = `Gagal di server: ${lastLog}`;
+                    jobs[jobId].logs = data.logs || job.logs;
+                    jobs[jobId].error = lastLog;
+                    jobs[jobId].updatedAt = Date.now();
+                    await this.saveJobs(jobs);
+                    return;
+                }
+
+                jobs[jobId].percent = percent;
+                jobs[jobId].speed = speed;
+                jobs[jobId].eta = eta;
+                jobs[jobId].stageLabel = stageLabel;
+                jobs[jobId].status = data.running ? (serverStatus === 'downloading' ? 'downloading' : serverStatus) : job.status;
+                jobs[jobId].logs = data.logs || job.logs;
+                jobs[jobId].updatedAt = Date.now();
+                await this.saveJobs(jobs);
+                return; // Suppress auto download to user computer
+            }
+
+            // === MODE DOWNLOAD BIASA (KE KOMPUTER) ===
             if (serverStatus === 'queued') {
                 stageLabel = 'Diterima server (Dalam antrean)…';
             } else if (serverStatus === 'downloading' || serverStatus.includes('Mengunduh') || serverStatus.includes('Menghubungi')) {
