@@ -341,6 +341,20 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
         elif path == '/features':
             path = '/features.html'
             
+        # Redirect /extension.zip to versioned package URL so the link has the version
+        if path == '/extension.zip':
+            manifest_file = config.BASE_DIR / 'chrome-extension' / 'manifest.json'
+            v = '2.1.4'
+            if manifest_file.exists():
+                try:
+                    v = json.loads(manifest_file.read_text()).get('version', v)
+                except Exception:
+                    pass
+            self.send_response(302)
+            self.send_header('Location', f'/OmniFetch-Companion-v{v}.zip')
+            self.end_headers()
+            return
+
         safe_path = Path(config.BASE_DIR / path.lstrip('/')).resolve()
         
         # Directory traversal protection
@@ -349,12 +363,9 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             return
             
         if not safe_path.exists() or not safe_path.is_file():
-            # Fallback for extension.zip if named differently
-            if path == '/extension.zip':
-                candidates = [
-                    config.BASE_DIR / 'omnifetch-companion-v2.zip',
-                    *sorted(config.BASE_DIR.glob('OmniFetch-Companion-*.zip'), reverse=True)
-                ]
+            # Fallback for versioned companion zip if specific file doesn't exist on disk
+            if 'companion' in path.lower() and path.endswith('.zip'):
+                candidates = sorted(config.BASE_DIR.glob('OmniFetch-Companion-*.zip'), reverse=True)
                 for cand in candidates:
                     if cand.exists() and cand.is_file():
                         safe_path = cand
@@ -371,17 +382,7 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
             if safe_path.suffix == '.zip':
-                download_name = safe_path.name
-                if path == '/extension.zip' or 'companion' in safe_path.name.lower() or safe_path.name == 'extension.zip':
-                    manifest_file = config.BASE_DIR / 'chrome-extension' / 'manifest.json'
-                    v = '2.1.4'
-                    if manifest_file.exists():
-                        try:
-                            v = json.loads(manifest_file.read_text()).get('version', v)
-                        except Exception:
-                            pass
-                    download_name = f"OmniFetch-Companion-v{v}.zip"
-                self.send_header('Content-Disposition', f'attachment; filename="{download_name}"')
+                self.send_header('Content-Disposition', f'attachment; filename="{safe_path.name}"')
             self.end_headers()
             self.wfile.write(content)
         except Exception:
