@@ -13,3 +13,4 @@ hasil-subtitle/
 .env.*
 cookies*.txt
 *.log
+test_env/

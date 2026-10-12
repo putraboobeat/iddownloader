@@ -23,16 +23,16 @@ python3 -m venv .venv
 .venv/bin/python app.py
 ```
 
-## Ekstensi Chrome
+## Ekstensi Chrome (OmniFetch Companion v2.1.3)
 
-1. Buka `chrome://extensions` dan aktifkan Developer mode.
-2. Klik Load unpacked, pilih folder `chrome-extension`.
-3. Buka Pengaturan ekstensi, isi alamat aplikasi lokal yang aktif.
-4. Muat ulang halaman film, selesaikan verifikasi dan lewati iklan seperti biasa.
-5. Panel otomatis menyediakan Copy link JSON atau Kirim ke Downloader.
-6. Playlist config diprioritaskan dan subtitle Indonesia dari sumber yang sama dipilih bila terdeteksi. Periksa sumber jika hasil yang ditemukan adalah iklan.
+1. Buka `chrome://extensions` dan aktifkan **Developer mode**.
+2. Klik **Load unpacked**, pilih folder `chrome-extension` (atau ekstrak `OmniFetch-Companion-v2.1.3.zip`).
+3. Ekstensi terhubung otomatis ke server produksi `https://dw.pmlab.id`. Token sesi dibuat otomatis untuk isolasi antrean.
+4. Buka halaman video (YouTube, Instagram, TikTok, X) atau putar film streaming (HLS/DASH).
+5. Buka popup ekstensi, pilih format/resolusi atau subtitle, lalu klik **Unduh Sekarang**.
+6. Pemantauan progres (persentase, kecepatan, ETA) tampil langsung di popup, dan file hasil otomatis tersimpan ke komputer (`Downloads/OmniFetch/<Judul Media>/`) tanpa mewajibkan pengguna membuka dashboard web.
 
-Paket `Video-Downloader-Extension.zip` juga tersedia dari tombol unduh ekstensi pada aplikasi. Pemasangan lewat Chrome Web Store belum tersedia. Detail: `chrome-extension/PANDUAN.txt` dan panduan dalam aplikasi.
+Paket `OmniFetch-Companion-v2.1.3.zip` dan `omnifetch-companion-v2.zip` tersedia di root direktori. Detail lengkap: `chrome-extension/PANDUAN.txt`.
 
 ## Penyimpanan
 

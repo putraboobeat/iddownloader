@@ -1,49 +1,163 @@
-OMNIFETCH COMPANION v2.0.3 — PANDUAN PENGGUNAAN
+================================================================================
+           OMNIFETCH COMPANION v2.1.3 — PANDUAN LENGKAP PENGGUNA
+================================================================================
 
-SERVER PERMANEN
-Ekstensi OmniFetch Companion kini terhubung secara permanen ke server produksi:
-https://dw.pmlab.id
-Pengguna tidak perlu lagi mengisi atau menyetel alamat server manual.
+PENGALAMAN DOWNLOAD SATU ALUR (LANGSUNG DARI EKSTENSI)
+Ekstensi OmniFetch Companion mengintegrasikan seluruh alur download secara
+mandiri langsung dari popup:
+1. Deteksi media otomatis (YouTube, Instagram, TikTok, Twitter/X, HLS, DASH, MP4).
+2. Pilihan format, resolusi (Best, 1080p, 720p, 480p), audio MP3/FLAC, & subtitle.
+3. Satu tombol utama "Unduh Sekarang".
+4. Pemantauan progres real-time langsung di dalam ekstensi dengan status transfer jujur.
+5. Penyimpanan otomatis hasil unduhan ke komputer Anda melalui Chrome Downloads.
+Pengguna TIDAK LAGI DIWAJIBKAN membuka website dashboard (dw.pmlab.id). Dashboard
+hanya tersedia sebagai opsi tambahan.
 
-PASANG / PEMBARUAN EKSTENSI
-1. Buka Google Chrome dan buka chrome://extensions di bilah alamat.
-2. Aktifkan Developer mode / Mode developer di pojok kanan atas.
-3. Klik tombol Update (atau Reload pada kartu OmniFetch Companion jika sudah terpasang).
-   Jika baru pertama kali memasang, klik Load unpacked / Muat yang belum dipaketkan,
-   lalu pilih folder "chrome-extension".
-4. Muat ulang (Refresh / F5) tab halaman streaming atau media yang sedang dibuka.
+--------------------------------------------------------------------------------
+PEMBARUAN & PERBAIKAN STABILITAS VERSI 2.1.3
+--------------------------------------------------------------------------------
+1. Perbaikan Alur Retry Lokal (Bug A Tuntas):
+   - retryJob menggunakan daftar target fileId eksplisit dan hanya mengklaim file
+     gagal/interrupted tanpa mereset file completed, downloading, atau starting.
+   - Mengeliminasi pengembalian sukses palsu ({ok: true}) jika tidak ada transfer
+     dimulai; secara jujur membedakan status 'started', 'already_running',
+     'no_files_to_retry', dan 'failed'.
+   - File yang sudah berstatus completed tidak pernah diunduh ulang, dan nol panggilan
+     ke POST /api/start dibuat selama file server masih valid.
+2. Rekonsiliasi & Pencocokan Unduhan Tepat (Bug B Tuntas):
+   - Pencocokan URL data: dilakukan secara exact match string lengkap, mencegah
+     adopsi berkas yang salah/konten berbeda.
+   - Pencocokan URL HTTP/HTTPS memverifikasi origin, pathname, dan query parameter
+     secara penuh (termasuk session token dan parameter sumber).
+   - Pencocokan folder dan nama file memverifikasi target folder OmniFetch/<Judul>/
+     secara tepat dengan normalisasi separator lintas OS (Windows \ vs Unix /).
+   - Mendukung format penamaan uniquify Chrome (file (1).ext) HANYA jika berada
+     dalam folder target yang sama persis.
+   - Jika nol atau terdapat beberapa kandidat ambigu di Chrome history, sistem
+     menandai file sebagai 'needs_verification' tanpa mengunduh ulang otomatis,
+     dan menyediakan tombol "Unduhan Chrome" serta "Periksa Ulang".
+3. Penanganan Pengiriman Terputus / Worker Disconnect (Bug C Tuntas):
+   - Pengiriman yang kehilangan kelanjutan setelah batas waktu (> 120s) ditransisikan
+     secara persisten menjadi status 'uncertain' (BUKAN dihapus dari storage).
+   - Status 'uncertain' bertahan melintasi service worker restart dan secara ketat
+     memblokir pengiriman ulang otomatis tanpa tindakan eksplisit pengguna.
+   - Tindakan rilis (release) dan pembersihan (clearSubmission) hanya memengaruhi
+     operationId miliknya, melindungi klaim baru dari operasi async lama.
+   - Kesalahan jaringan (NETWORK_ERROR) dan waktu habis (TIMEOUT) saat request ke
+     server diperlakukan sebagai status uncertain.
+4. Integrasi Tombol Periksa Ulang (Recheck) di UI:
+   - Menyediakan tombol "Periksa Ulang" saat status pekerjaan bernilai 'needs_verification'
+     sehingga pengguna dapat memeriksa kembali setelah membuka Chrome Downloads.
 
-AUTENTIKASI & TOKEN SESI (X-App-Session)
-1. Ekstensi menggunakan header autentikasi X-App-Session untuk memisahkan antrean
-   dan riwayat unduhan masing-masing pengguna.
-2. Buka Pengaturan Ekstensi (klik kanan ikon ekstensi -> Options atau tombol ⚙️ di popup):
-   - Masukkan token sesi Anda dari web dashboard dw.pmlab.id, ATAU
-   - Tekan tombol "🔑 Buat Otomatis" untuk menghasilkan token sesi baru seketika.
-3. Klik "Simpan Pengaturan". Anda dapat menguji status sesi dengan tombol "Uji Koneksi Sesi".
+--------------------------------------------------------------------------------
+TAHAP STATUS PEKERJAAN (JUJUR DAN TRANSPARAN)
+--------------------------------------------------------------------------------
+Ekstensi membedakan secara tegas setiap tahap unduhan dan tidak menampilkan 100%
+sebelum file benar-benar selesai ditulis ke disk lokal:
+- "Diterima server": Tugas didaftarkan ke antrean server backend.
+- "Diproses server": Backend (yt-dlp/FFmpeg) sedang mengunduh atau mengonversi media.
+  Ditampilkan bersama persentase %, kecepatan unduh server, & estimasi waktu (ETA).
+- "Menyimpan ke komputer": File server selesai diolah dan sedang ditransfer ke folder
+  lokal komputer (Downloads/OmniFetch/<Folder Media>/...). Ekstensi menampilkan progres
+  ukuran byte nyata (MB diterima / MB total) dari Chrome Downloads API.
+- "Selesai": Semua file hasil 100% tersimpan di hard drive komputer Anda.
+- "Terputus / Gagal": Jika salah satu file gagal disimpan atau jaringan terputus, ekstensi
+  menandai status terputus, menampilkan rincian error tiap file, dan membuka tombol Coba Lagi.
+- "Perlu Pemeriksaan": Status unduhan memerlukan konfirmasi untuk mencegah duplikasi.
 
-CARA MENGUNDUH MEDIA STREAMING (HLS / DASH / MP4)
-1. Buka halaman film / video di situs yang Anda tuju (misal Idlix atau pemutar streaming).
-2. Putar video (Play). Jika ada iklan, tunggu atau lewati iklan hingga video utama berputar.
-3. Buka popup OmniFetch Companion:
-   - Sumber streaming yang tertangkap akan diberi label jelas:
-     [Playlist HLS], [Manifest DASH], atau [Video langsung].
-   - Respons non-media seperti token claim, analitik, dan tracking otomatis disaring keluar.
-   - Respons unverified (.json) yang belum terbukti sebagai media akan menonaktifkan tombol
-     unduh demi mencegah pengiriman URL yang salah.
-4. Pilih sumber video dan subtitle (bila ada).
-5. Klik "⬇ Kirim Playlist ke Server".
-   - Ekstensi akan menampilkan progres pengiriman ke dw.pmlab.id.
-   - Setelah server menerima tugas, status "Pekerjaan Diterima Server" dengan Job ID
-     dan tautan langsung ke Dashboard akan ditampilkan.
+--------------------------------------------------------------------------------
+CARA PASANG / PERBARUI EKSTENSI DI GOOGLE CHROME
+--------------------------------------------------------------------------------
+1. Buka browser Google Chrome dan ketik pada bilah alamat:
+   chrome://extensions
+2. Pastikan "Developer mode" (Mode pengembang) di pojok kanan atas AKTIF.
+3. Jika sudah terpasang versi lama:
+   - Klik tombol "Reload" (ikon panah melingkar) pada kartu OmniFetch Companion.
+4. Jika memasang untuk pertama kali:
+   - Klik "Load unpacked" (Muat yang belum dibongkar).
+   - Pilih folder "chrome-extension" di dalam direktori proyek ini.
+5. Muat ulang (F5) tab video/streaming yang ingin Anda unduh.
 
-CARA MENGUNDUH SOSIAL MEDIA LANGSUNG (YouTube, IG, TikTok, X)
-1. Buka halaman video YouTube, Reel Instagram, atau TikTok.
-2. Klik popup OmniFetch Companion -> Klik "🚀 Sedot ke dw.pmlab.id".
-3. Tugas otomatis dikirimkan ke server downloader.
+--------------------------------------------------------------------------------
+LOKASI PENYIMPANAN KOMPUTER
+--------------------------------------------------------------------------------
+File disimpan secara rapi di komputer lokal pada:
+   Downloads/OmniFetch/<Nama Judul Media>/<Nama File>
+Nama dasar video dan subtitle diselaraskan (misal Film.mp4 dan Film.id.srt) agar
+pemutar video (VLC, PotPlayer, QuickTime) dapat langsung memuat subtitle secara otomatis.
 
-PESAN ERROR DAN SOLUSINYA
-- "Sesi belum terhubung atau kedaluwarsa": Buka Pengaturan dan pastikan token sesi sudah diisi.
-- "Tidak dapat terhubung ke server": Periksa koneksi internet Anda ke dw.pmlab.id.
-- "Waktu koneksi habis (timeout)": Server sedang sibuk; jangan mengirim ulang berulang kali.
-- "Sumber media tidak valid": Sumber yang dipilih bukan stream yang dapat diproses server.
-- "Pekerjaan ditolak server": Server menolak permintaan (periksa log atau batasan server).
+--------------------------------------------------------------------------------
+KEAMANAN, IZIN, DAN BATASAN TEKNIS
+--------------------------------------------------------------------------------
+1. Izin Host Minimal:
+   - Izin wajib hanya dibatasi ke server backend: https://dw.pmlab.id/*
+   - Izin akses website (*://*/*) bersifat opsional untuk sniffer dan cookie sync.
+2. Token Sesi (X-App-Session):
+   - Token dibuat otomatis dan terikat secara persisten per pekerjaan. Mengubah token
+     di pengaturan tidak akan merusak riwayat atau pemantauan pekerjaan lama.
+   - Token dan tanda tangan URL otomatis disamarkan (masked) saat menyalin diagnostik.
+3. Keterbatasan API Idempotensi Backend Existing:
+   - Backend saat ini belum mendukung idempotency-key pada endpoint /api/start.
+   - Ekstensi menangani koordinasi idempotensi di sisi klien melalui SubmissionCoordinator
+     persisten. Jika terjadi timeout koneksi, ekstensi tidak otomatis mengulang POST
+     agar tidak menciptakan antrean ganda di server, melainkan meminta pengguna
+     memeriksa status pekerjaan terlebih dahulu.
+4. Batasan Layanan:
+   - Ekstensi tidak mendukung bypass DRM komersial terenkripsi (Widevine L1/PlayReady),
+     CAPTCHA protektif Cloudflare, atau paywall berbayar tanpa akun.
+
+--------------------------------------------------------------------------------
+PANDUAN MENGGUNAKAN SERVER LOKAL DI LAPTOP (SAAT SERVER CLOUD MATI)
+--------------------------------------------------------------------------------
+Jika server cloud https://dw.pmlab.id sedang mati/offline, Anda dapat menjalankan
+backend secara lokal di laptop Anda dan menghubungkan ekstensi ke server lokal:
+
+1. Menjalankan Server Backend di Laptop:
+   Buka Terminal di folder proyek ini, lalu jalankan:
+      .venv/bin/python app.py
+   (atau klik ganda file 'Mulai.command' di Finder).
+   Server akan aktif di: http://127.0.0.1:8080
+
+2. Mengarahkan Ekstensi ke Server Lokal:
+   - Klik ikon ekstensi OmniFetch Companion di Chrome.
+   - Klik badge 'Server' di header popup atau buka halaman Pengaturan (Options).
+   - Pada bagian 'Target Server Backend', pilih:
+     🔘 '💻 Server Lokal (Laptop)' (http://127.0.0.1:8080).
+   - Klik 'Simpan Pengaturan', lalu klik 'Uji Koneksi Sesi'.
+   - Jika status menampilkan '✅ Koneksi dan sesi valid', ekstensi sudah terhubung
+     ke laptop Anda!
+
+3. Mengunduh Video:
+   - Putar video di YouTube, Instagram, Twitter, TikTok, atau situs streaming lainnya.
+   - Buka popup ekstensi, pilih resolusi/format, lalu klik 'Unduh Sekarang'.
+   - Pemrosesan video dilakukan langsung oleh mesin yt-dlp & FFmpeg lokal Anda,
+     dan file tersimpan otomatis ke folder Downloads/OmniFetch/<Judul>/ di laptop Anda.
+
+--------------------------------------------------------------------------------
+CARA MENGUNDUH POSTINGAN GALERI / CAROUSEL (FOTO & VIDEO BANYAK SLIDE)
+--------------------------------------------------------------------------------
+Saat membuka postingan yang berisi banyak slide (seperti Instagram Carousel,
+Reddit Gallery, dll), ekstensi menyediakan pilihan fleksibel:
+
+1. Cara Mengunduh Hanya 1 Gambar / Slide Tertentu:
+   - Di popup ekstensi, klik tombol pil '📦 Galeri / ZIP'.
+   - Pilih opsi '🖼️ Hanya 1 Gambar / Slide Tertentu'.
+   - Pilih nomor slide yang diinginkan pada dropdown (misal: Slide 1, Slide 2, dst).
+   - Klik 'Unduh Sekarang'. Ekstensi hanya akan mengunduh dan menyimpan 1 file
+     slide yang Anda pilih ke folder Downloads/OmniFetch/... tanpa mengunduh
+     seluruh slide lain.
+
+2. Cara Mengunduh Gambar Langsung via Pemindai DOM:
+   - Jika Anda sedang melihat foto tertentu di halaman (misal slide ke-3),
+     klik tombol '🔍 Pindai Ulang Halaman'.
+   - Di menu 'Sumber Stream Terdeteksi', pilih 'Foto / Slide #X'.
+   - Klik 'Unduh Sekarang' untuk mengambil file gambar tersebut secara langsung.
+
+3. Cara Mengunduh Semua Slide Sekaligus:
+   - Pilih '📦 Semua Slide (Paket .ZIP)': Mengunduh semua foto & video lalu
+     mengemasnya ke dalam 1 file arsip .ZIP yang rapi.
+   - Atau pilih '📂 Semua Slide (File Foto/Video Terpisah)': Mengunduh semua foto &
+     video satu per satu ke dalam folder khusus tanpa dikompres ke ZIP.
+
+
+

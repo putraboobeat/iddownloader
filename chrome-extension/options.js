@@ -1,29 +1,71 @@
-import { Config, BASE_URL } from './background/config.js';
+import { Config, BASE_URL, LOCAL_SERVER_URL } from './background/config.js';
 
 const tokenInput = document.getElementById('token');
 const syncInput = document.getElementById('sync');
+const domainBox = document.getElementById('domain-selector-box');
 const status = document.getElementById('status');
 const btnGenToken = document.getElementById('btn-generate-token');
 
+const modeLocal = document.getElementById('mode-local');
+const modeProd = document.getElementById('mode-prod');
+const modeCustom = document.getElementById('mode-custom');
+const customBox = document.getElementById('custom-server-box');
+const customUrlInput = document.getElementById('custom-server-url');
+
 function showStatus(type, msg) {
     status.className = type;
-    status.innerHTML = msg;
+    status.textContent = msg;
     status.style.display = 'block';
 }
+
+function updateServerBox() {
+    if (customBox) {
+        customBox.style.display = modeCustom && modeCustom.checked ? 'block' : 'none';
+    }
+}
+
+if (modeLocal) modeLocal.onchange = updateServerBox;
+if (modeProd) modeProd.onchange = updateServerBox;
+if (modeCustom) modeCustom.onchange = updateServerBox;
 
 (async () => {
     const s = await Config.getAppInfo();
     if (tokenInput) tokenInput.value = s.token || '';
-    if (syncInput) syncInput.checked = !!s.cookieSync;
+    if (syncInput) {
+        syncInput.checked = !!s.cookieSync;
+        if (domainBox) domainBox.style.display = s.cookieSync ? 'block' : 'none';
+    }
+
+    if (s.serverMode === 'local' && modeLocal) {
+        modeLocal.checked = true;
+    } else if (s.serverMode === 'custom' && modeCustom) {
+        modeCustom.checked = true;
+        if (customUrlInput) customUrlInput.value = s.serverUrl || '';
+    } else if (modeProd) {
+        modeProd.checked = true;
+    }
+    updateServerBox();
+
+    const savedDomains = s.cookieDomains || [];
+    document.querySelectorAll('.site-cb').forEach(cb => {
+        if (savedDomains.includes(cb.value)) {
+            cb.checked = true;
+        }
+    });
 })();
+
+if (syncInput) {
+    syncInput.onchange = () => {
+        if (domainBox) domainBox.style.display = syncInput.checked ? 'block' : 'none';
+    };
+}
 
 if (btnGenToken) {
     btnGenToken.onclick = () => {
-        // Hasilkan token sesi alphanumeric acak yang aman
         const randStr = Array.from(crypto.getRandomValues(new Uint8Array(12)))
             .map(b => b.toString(16).padStart(2, '0')).join('');
         tokenInput.value = 'omni' + randStr;
-        showStatus('info', 'Token baru dibuat. Klik <strong>Simpan Pengaturan</strong> untuk mengaktifkannya.');
+        showStatus('info', 'Token baru dibuat. Klik "Simpan Pengaturan" untuk mengaktifkannya.');
     };
 }
 
@@ -36,13 +78,33 @@ document.getElementById('save').onclick = async () => {
             throw new Error('Token sesi harus berupa kombinasi huruf dan angka (alphanumeric) tanpa spasi atau simbol.');
         }
 
+        let chosenMode = 'production';
+        let customUrl = BASE_URL;
+
+        if (modeLocal && modeLocal.checked) {
+            chosenMode = 'local';
+            customUrl = LOCAL_SERVER_URL;
+        } else if (modeCustom && modeCustom.checked) {
+            chosenMode = 'custom';
+            customUrl = customUrlInput ? customUrlInput.value.trim() : LOCAL_SERVER_URL;
+            if (!customUrl.startsWith('http://') && !customUrl.startsWith('https://')) {
+                throw new Error('URL server kustom harus diawali dengan http:// atau https://');
+            }
+        }
+
+        const selectedDomains = [];
         if (syncVal) {
             const granted = await chrome.permissions.request({ permissions: ['cookies'] });
             if (!granted) throw new Error('Izin pembacaan cookie ditolak oleh browser.');
+
+            document.querySelectorAll('.site-cb:checked').forEach(cb => {
+                selectedDomains.push(cb.value);
+            });
         }
 
-        await Config.setAppInfo(tokenVal, syncVal);
-        showStatus('success', '✅ Pengaturan berhasil disimpan untuk <strong>' + BASE_URL + '</strong>.');
+        await Config.setAppInfo(tokenVal, syncVal, selectedDomains, chosenMode, customUrl);
+        const activeUrl = await Config.getBaseUrl();
+        showStatus('success', '✅ Pengaturan berhasil disimpan untuk server ' + activeUrl + '.');
     } catch (e) {
         showStatus('error', '❌ ' + e.message);
     }
@@ -60,7 +122,8 @@ document.getElementById('test').onclick = async () => {
         return;
     }
 
-    showStatus('info', 'Menguji koneksi ke ' + BASE_URL + '…');
+    const activeUrl = await Config.getBaseUrl();
+    showStatus('info', 'Menguji koneksi ke ' + activeUrl + '…');
 
     chrome.runtime.sendMessage({ type: 'CHECK_SESSION', token: tokenVal }, (res) => {
         if (chrome.runtime.lastError) {
@@ -69,11 +132,11 @@ document.getElementById('test').onclick = async () => {
         }
 
         if (res && res.ok) {
-            showStatus('success', '✅ Koneksi dan sesi valid! Server <strong>' + BASE_URL + '</strong> merespons dengan baik.');
+            showStatus('success', '✅ Koneksi dan sesi valid! Server ' + activeUrl + ' merespons dengan baik.');
         } else if (res && res.code === '401') {
             showStatus('error', '❌ Sesi belum terhubung atau kedaluwarsa (401 Unauthorized). Silakan periksa kembali token Anda.');
         } else {
-            showStatus('error', '❌ ' + (res?.message || 'Gagal terhubung ke server dw.pmlab.id.'));
+            showStatus('error', '❌ ' + (res?.message || 'Gagal terhubung ke server ' + activeUrl + '. Pastikan server aktif.'));
         }
     });
 };

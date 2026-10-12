@@ -5,14 +5,14 @@
     <title>Pengaturan OmniFetch Companion</title>
     <style>
         body {
-            max-width: 520px;
+            max-width: 540px;
             margin: 40px auto;
             padding: 24px;
             background: #0d0508;
             color: #f5f5f7;
-            font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        h1 { color: #ff3d58; margin-top: 0; font-size: 22px; display: flex; align-items: center; gap: 8px; }
+        h1 { color: #ff3d58; margin-top: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
         .server-card {
             background: #1a0a10;
             border: 1px solid #3d1420;
@@ -32,7 +32,7 @@
         }
         input:focus { outline: 1px solid #ff3d58; }
         
-        .token-help { font-size: 11px; color: #888; margin-top: 4px; margin-bottom: 12px; }
+        .token-help { font-size: 11px; color: #888; margin-top: 4px; margin-bottom: 12px; line-height: 1.4; }
         
         .row-btns { display: flex; gap: 10px; margin-top: 10px; }
         button {
@@ -46,11 +46,10 @@
         .btn-secondary:hover { background: #3d0f19; }
         
         .checkbox-wrap {
-            display: flex; align-items: flex-start; gap: 10px; margin: 18px 0;
-            background: #14060b; padding: 12px 14px; border-radius: 8px; border: 1px solid #2a0b12;
+            margin: 16px 0; background: #14060b; padding: 12px 14px; border-radius: 8px; border: 1px solid #2a0b12;
         }
-        .checkbox-wrap input { margin-top: 3px; transform: scale(1.2); }
-        .checkbox-wrap label { margin: 0; font-size: 12px; color: #ddd; font-weight: normal; cursor: pointer; }
+        .domain-checklist { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .domain-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #ccc; }
 
         #status {
             margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 12px;
@@ -60,7 +59,7 @@
         #status.error { display: block; background: #380b15; color: #ff99aa; border: 1px solid #75142a; }
         #status.info { display: block; background: #201a08; color: #fde047; border: 1px solid #78350f; }
 
-        .footer-note { margin-top: 24px; font-size: 11px; color: #666; border-top: 1px solid #220810; padding-top: 14px; }
+        .footer-note { margin-top: 24px; font-size: 11px; color: #666; border-top: 1px solid #220810; padding-top: 14px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -70,29 +69,82 @@
     </h1>
     
     <div class="server-card">
-        <div class="title">Server Backend Produksi</div>
-        <div class="server-val">
-            <span>https://dw.pmlab.id</span>
-            <span class="badge-fixed">Terkunci Permanen</span>
+        <div class="title">Target Server Backend</div>
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:10px;">
+            <label style="margin:0; font-weight:normal; display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:#14060b; padding:10px 12px; border-radius:8px; border:1px solid #2a0b12;">
+                <input type="radio" name="server_mode" value="local" id="mode-local" style="margin-top:3px;">
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; color:#86efac; font-size:13px;">💻 Server Lokal (Laptop)</span>
+                        <span style="background:#082813; color:#86efac; padding:1px 6px; border-radius:10px; font-size:9px; border:1px solid #166534;">Aktifkan saat server mati</span>
+                    </div>
+                    <div style="color:#aaa; font-size:11px; margin-top:2px;">
+                        <code>http://127.0.0.1:8080</code> • Jalankan <code>app.py</code> di terminal laptop Anda.
+                    </div>
+                </div>
+            </label>
+            <label style="margin:0; font-weight:normal; display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:#14060b; padding:10px 12px; border-radius:8px; border:1px solid #2a0b12;">
+                <input type="radio" name="server_mode" value="production" id="mode-prod" checked style="margin-top:3px;">
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; color:#ff8fa3; font-size:13px;">🌐 Server Produksi Cloud</span>
+                        <span style="background:#3d0f19; color:#ff3d58; padding:1px 6px; border-radius:10px; font-size:9px; border:1px solid #75142a;">Default</span>
+                    </div>
+                    <div style="color:#aaa; font-size:11px; margin-top:2px;">
+                        <code>https://dw.pmlab.id</code>
+                    </div>
+                </div>
+            </label>
+            <label style="margin:0; font-weight:normal; display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:#14060b; padding:10px 12px; border-radius:8px; border:1px solid #2a0b12;">
+                <input type="radio" name="server_mode" value="custom" id="mode-custom" style="margin-top:3px;">
+                <div style="flex:1;">
+                    <span style="font-weight:700; color:#fde047; font-size:13px;">⚙️ Server Kustom</span>
+                    <div style="color:#aaa; font-size:11px; margin-top:2px;">Tentukan alamat server / port pengujian kustom.</div>
+                    <div id="custom-server-box" style="margin-top:8px; display:none;">
+                        <input type="text" id="custom-server-url" placeholder="http://127.0.0.1:8080" style="font-size:12px; padding:7px 10px;">
+                    </div>
+                </div>
+            </label>
         </div>
     </div>
     
-    <label for="token">Session Token (X-App-Session)</label>
+    <label for="token">Token Sesi (X-App-Session)</label>
     <div style="display:flex; gap:8px;">
         <input type="text" id="token" placeholder="Contoh: omni9a8f7c6e5d4b3a2" autocomplete="off" spellcheck="false" style="flex:1;">
         <button type="button" class="btn-secondary" id="btn-generate-token" style="white-space:nowrap; padding:10px 12px; font-size:11px;" title="Buat token acak alphanumeric">🔑 Buat Otomatis</button>
     </div>
     <div class="token-help">
-        Digunakan untuk memasangkan sesi unduhan Anda dengan server dw.pmlab.id. Anda dapat memasukkan token sesi dari Dashboard atau menekan <em>Buat Otomatis</em>.
+        Token sesi berfungsi sebagai kunci identifikasi untuk mengisolasi antrean tugas dan file unduhan Anda di server, bukan login akun pribadi. Ekstensi otomatis membuatnya jika kosong.
     </div>
 
     <div class="checkbox-wrap">
-        <input type="checkbox" id="sync">
-        <div>
-            <label for="sync"><strong>Sinkronisasi Cookie Otomatis (Eksperimental)</strong></label>
-            <div style="font-size:11px; color:#888; margin-top:2px;">
-                Meneruskan sesi browser (Instagram/TikTok/YouTube) secara aman hanya ke server permanen dw.pmlab.id.
+        <div style="display:flex; align-items:flex-start; gap:8px;">
+            <input type="checkbox" id="sync" style="margin-top:3px;">
+            <div>
+                <label for="sync" style="margin:0; font-size:12px; color:#ddd; cursor:pointer;">
+                    <strong>Sinkronisasi Cookie Akun (Opt-In / Eksperimental)</strong>
+                </label>
+                <div style="font-size:11px; color:#888; margin-top:2px;">
+                    Hanya kirimkan cookie situs yang dipilih ke server dw.pmlab.id jika diperlukan untuk konten pribadi/login.
+                </div>
             </div>
+        </div>
+        <div id="domain-selector-box" style="margin-top:10px; padding-top:8px; border-top:1px solid #250912; display:none;">
+            <div style="font-size:11px; font-weight:600; color:#ff8fa3; margin-bottom:6px;">Pilih Situs yang Diizinkan:</div>
+            <div class="domain-checklist">
+                <label class="domain-item"><input type="checkbox" class="site-cb" value=".instagram.com"> Instagram</label>
+                <label class="domain-item"><input type="checkbox" class="site-cb" value=".tiktok.com"> TikTok</label>
+                <label class="domain-item"><input type="checkbox" class="site-cb" value=".youtube.com"> YouTube</label>
+                <label class="domain-item"><input type="checkbox" class="site-cb" value=".x.com"> X / Twitter</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="server-card" style="padding:12px 14px; margin-bottom:14px;">
+        <div class="title">Lokasi Penyimpanan Lokal</div>
+        <div style="font-size:12px; color:#ddd; margin-top:4px;">
+            Hasil unduhan disimpan otomatis oleh Chrome ke:
+            <code style="color:#ff8fa3; display:block; margin-top:4px;">Downloads/OmniFetch/&lt;Judul Media&gt;/</code>
         </div>
     </div>
     
@@ -104,7 +156,7 @@
     <div id="status" role="status"></div>
 
     <div class="footer-note">
-        Ekstensi dikonfigurasi permanen untuk <strong>https://dw.pmlab.id</strong>. Izin host dw.pmlab.id sudah otomatis aktif tanpa perlu pengaturan manual. Izin situs sumber video dimintakan secara terpisah hanya saat dibutuhkan.
+        OmniFetch Companion v2.1.0 • File hasil diproses di server dw.pmlab.id dan disimpan langsung ke komputer Anda tanpa memerlukan dashboard website.
     </div>
 
     <script src="options.js" type="module"></script>

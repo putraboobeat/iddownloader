@@ -2,95 +2,117 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <title>OmniFetch 2.0</title>
+  <title>OmniFetch Companion</title>
   <style>
     * { box-sizing: border-box; }
     body {
-      width: 360px; max-height: 580px; overflow-y: auto; margin: 0; padding: 18px;
+      width: 380px; max-height: 590px; overflow-y: auto; margin: 0; padding: 16px;
       background: #0d0508; color: #f5f5f7;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.5;
+      line-height: 1.45; font-size: 12px;
     }
     
     /* Header */
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    h1 { font-size: 19px; margin: 0; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
-    h1 svg { width: 20px; height: 20px; color: #ff3d58; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    h1 { font-size: 18px; margin: 0; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+    h1 svg { width: 20px; height: 20px; color: #ff3d58; flex-shrink: 0; }
     h1 span { color: #ff3d58; font-weight: 800; }
+    .header-right { display: flex; align-items: center; gap: 6px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .status-dot.offline { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
     .badge { background: #3d0f19; color: #ff8fa3; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; border: 1px solid #75142a; }
 
     /* Cards */
-    .card { background: #1a0a10; border: 1px solid #3d1420; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-    .card-title { font-size: 13px; font-weight: 600; color: #ffb3c1; margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px; }
+    .card { background: #1a0a10; border: 1px solid #3d1420; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+    .card-title { font-size: 13px; font-weight: 700; color: #ffb3c1; margin: 0 0 8px 0; display: flex; align-items: center; justify-content: space-between; }
     
-    /* Direct Download Section */
-    #direct-dl-section { display: none; }
-    .url-preview { background: #000; padding: 8px; border-radius: 6px; font-size: 11px; color: #aaa; word-break: break-all; margin-bottom: 12px; border: 1px solid #2a0b12; }
+    /* Media Preview */
+    .media-preview-box { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+    .media-thumb { width: 72px; height: 50px; border-radius: 6px; object-fit: cover; background: #000; border: 1px solid #3d1420; flex-shrink: 0; }
+    .media-info { flex: 1; min-width: 0; }
+    .media-title { font-weight: 600; font-size: 12px; color: #fff; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2; }
+    .media-meta { font-size: 10px; color: #888; display: flex; gap: 8px; flex-wrap: wrap; }
+    .meta-tag { background: #2a0b12; color: #ff8fa3; padding: 1px 6px; border-radius: 4px; border: 1px solid #4a1320; }
+
+    /* Forms */
+    label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; font-weight: 600; }
+    select, input {
+      width: 100%; background: #000; border: 1px solid #3d1420; color: #fff;
+      padding: 8px 10px; border-radius: 8px; font-size: 11px; margin-bottom: 8px;
+    }
+    select:focus, input:focus { outline: 1px solid #ff3d58; }
+    
+    /* Tabs for Media Type */
+    .type-pills { display: flex; gap: 6px; margin-bottom: 8px; }
+    .pill {
+      flex: 1; text-align: center; padding: 6px 4px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      background: #000; color: #888; border: 1px solid #3d1420; cursor: pointer; transition: all 0.15s;
+    }
+    .pill.active { background: #3d0f19; color: #ff8fa3; border-color: #ff3d58; }
+
+    /* Hero Download Button */
     .btn-hero {
       width: 100%; background: linear-gradient(135deg, #c9153d, #ff3d58);
       color: #fff; border: none; padding: 12px; border-radius: 10px;
       font-size: 13px; font-weight: 700; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(201,21,61,0.3); transition: transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 4px 14px rgba(201,21,61,0.35); transition: transform 0.1s, opacity 0.1s;
     }
     .btn-hero:hover:not(:disabled) { transform: scale(1.02); }
     .btn-hero:active:not(:disabled) { transform: scale(0.98); }
-    .btn-hero:disabled { background: #444; box-shadow: none; cursor: not-allowed; transform: none; color: #888; }
+    .btn-hero:disabled { background: #333; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
 
-    /* Streaming Sniffer Section */
-    #sniffer-section { display: none; }
-    label { display: block; font-size: 11px; color: #aaa; margin-bottom: 6px; font-weight: 600; }
-    select, input {
-      width: 100%; background: #000; border: 1px solid #3d1420; color: #fff;
-      padding: 9px; border-radius: 8px; font-size: 11px; margin-bottom: 10px;
-    }
-    select:focus, input:focus { outline: 1px solid #ff3d58; }
-    .row-btns { display: flex; gap: 8px; }
-    .btn {
+    /* Button rows */
+    .row-btns { display: flex; gap: 6px; margin-top: 6px; }
+    .btn-sm {
       flex: 1; background: #2a0b12; border: 1px solid #571625; color: #ffb3c1;
-      padding: 10px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
-      transition: all 0.15s ease;
+      padding: 6px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;
+      text-align: center; transition: all 0.15s;
     }
-    .btn:hover:not(:disabled) { background: #3d0f19; }
-    .btn.primary { background: #e5163c; color: #fff; border-color: #ff3d58; }
-    .btn.primary:hover:not(:disabled) { background: #ff2a50; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm:hover:not(:disabled) { background: #3d0f19; }
+    .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm.danger { background: #450a0a; border-color: #991b1b; color: #fca5a5; }
+    .btn-sm.success { background: #052e16; border-color: #166534; color: #86efac; }
 
-    /* Status Boxes placed directly near action buttons */
+    /* Active Job Card */
+    #job-monitor-card { display: none; background: #14050a; border-color: #ff3d58; }
+    .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .job-stage { font-size: 11px; font-weight: 600; color: #ff8fa3; line-height: 1.3; }
+    .progress-bar-bg { width: 100%; height: 6px; background: #2a0b12; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+    .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3d58, #4ade80); transition: width 0.3s; }
+    .job-meta-row { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-bottom: 8px; }
+
+    /* Status Notifications */
     .action-status {
-      margin-top: 10px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-      line-height: 1.4;
-      display: none;
-      word-break: break-word;
+      margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11px; line-height: 1.4;
+      display: none; word-break: break-word;
     }
-    .action-status.error {
-      display: block;
-      background: #380b15;
-      color: #ff99aa;
-      border: 1px solid #75142a;
+    .action-status.error { display: block; background: #380b15; color: #ff99aa; border: 1px solid #75142a; }
+    .action-status.success { display: block; background: #082813; color: #86efac; border: 1px solid #166534; }
+    .action-status.loading { display: block; background: #201a08; color: #fde047; border: 1px solid #78350f; }
+
+    /* Collapsible Details */
+    details { margin-top: 10px; font-size: 11px; }
+    summary { cursor: pointer; color: #ff7590; font-weight: 600; margin-bottom: 6px; user-select: none; }
+    
+    /* Preview Modal */
+    #preview-modal {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); z-index: 99; padding: 16px;
     }
-    .action-status.success {
-      display: block;
-      background: #082813;
-      color: #86efac;
-      border: 1px solid #166534;
+    .modal-box {
+      background: #1a0a10; border: 1px solid #3d1420; border-radius: 10px;
+      height: 100%; display: flex; flex-direction: column; padding: 12px;
     }
-    .action-status.loading {
-      display: block;
-      background: #201a08;
-      color: #fde047;
-      border: 1px solid #78350f;
+    .modal-box pre {
+      flex: 1; overflow: auto; background: #000; padding: 8px; border-radius: 6px;
+      font-size: 10px; color: #aaa; white-space: pre-wrap; word-break: break-all; margin: 8px 0;
     }
 
-    /* Extras */
-    details { font-size: 11px; color: #888; margin-top: 10px; }
-    summary { cursor: pointer; color: #ff7590; font-weight: 600; margin-bottom: 8px; }
-    
-    .footer-links { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 11px; }
-    .footer-links a, .footer-links button { color: #888; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
-    .footer-links a:hover, .footer-links button:hover { color: #fff; }
+    /* Footer */
+    footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 11px; }
+    footer a, footer button { color: #888; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-size: 11px; }
+    footer a:hover, footer button:hover { color: #fff; }
   </style>
 </head>
 <body>
@@ -100,73 +122,236 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       OMNI<span>FETCH</span>
     </h1>
-    <span class="badge">v2.0.4</span>
+    <div class="header-right">
+      <div id="conn-dot" class="status-dot" title="Status Server"></div>
+      <span id="server-badge" class="meta-tag" style="font-size:9px; cursor:pointer; padding:2px 6px;" title="Klik untuk membuka Pengaturan Server">Server</span>
+      <span class="badge">v2.1.3</span>
+    </div>
   </header>
 
-  <!-- DIRECT DOWNLOAD CARD (For YT, IG, TT, Twitter) -->
-  <div class="card" id="direct-dl-section">
-    <h2 class="card-title">✨ Unduh Halaman Ini</h2>
-    <div class="url-preview" id="current-url">Mendeteksi URL...</div>
-    <button class="btn-hero" id="btn-dl-direct">🚀 Sedot ke dw.pmlab.id</button>
-    <div class="action-status" id="direct-status" role="alert"></div>
+  <!-- ACTIVE / RECENT JOB CARD (Persistent Monitoring) -->
+  <div class="card" id="job-monitor-card">
+    <div class="job-header">
+      <span class="card-title" style="margin:0;">⚡ Progres Unduhan</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span id="job-badge" class="meta-tag">Memproses</span>
+        <button id="btn-dismiss-job" style="background:none; border:none; color:#888; cursor:pointer; font-size:13px; padding:0 3px; line-height:1;" title="Sembunyikan kartu unduhan ini">✕</button>
+      </div>
+    </div>
+    <div id="job-title-display" style="font-weight:600; color:#fff; font-size:11px; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</div>
+    <div id="job-stage-display" class="job-stage">Menghubungkan ke server…</div>
+    <div class="progress-bar-bg">
+      <div id="job-progress-fill" class="progress-bar-fill"></div>
+    </div>
+    <div class="job-meta-row">
+      <span id="job-percent-text">0%</span>
+      <span id="job-speed-text">Kecepatan: -</span>
+      <span id="job-eta-text">ETA: -</span>
+    </div>
+    <div id="job-files-display" style="margin-bottom:8px; font-size:10px; color:#aaa; max-height:60px; overflow-y:auto; display:none;"></div>
+    <div class="row-btns">
+      <button class="btn-sm danger" id="btn-job-stop">⏹️ Hentikan</button>
+      <button class="btn-sm" id="btn-job-retry" style="display:none;">🔄 Coba Lagi</button>
+      <button class="btn-sm" id="btn-job-open-downloads" style="display:none;">📂 Unduhan Chrome</button>
+      <button class="btn-sm" id="btn-job-recheck" style="display:none;">🔍 Periksa Ulang</button>
+      <button class="btn-sm" id="btn-job-diag">📋 Salin Diagnostik</button>
+    </div>
   </div>
 
-  <!-- STREAMING SNIFFER CARD (For Movies/HLS) -->
-  <div class="card" id="sniffer-section">
-    <h2 class="card-title">🎬 Detektor Video Streaming</h2>
-    <p style="font-size:11px; color:#888; margin-top:0; margin-bottom:10px;">Putar video/film di halaman web untuk menangkap playlist streaming.</p>
-    
-    <label for="media">Sumber Media Terdeteksi</label>
-    <select id="media"><option value="">Menunggu video diputar...</option></select>
-    <div style="margin-bottom: 10px;">
-      <button type="button" class="btn" id="btn-copy-media" style="width:100%; padding:6px 8px; font-size:11px; background:#1e1015; border-color:#521927;">📋 Salin Link Playlist Video</button>
-    </div>
-    
-    <label for="subtitle">Subtitle Tambahan</label>
-    <select id="subtitle"><option value="">Tanpa subtitle tambahan</option></select>
-    <div style="margin-bottom: 10px;">
-      <button type="button" class="btn" id="btn-copy-sub" style="width:100%; padding:6px 8px; font-size:11px; background:#1e1015; border-color:#521927;">📋 Salin Link Subtitle</button>
-    </div>
-    
-    <div class="row-btns">
-      <button class="btn primary" id="send">⬇ Kirim Playlist ke Server</button>
-      <button class="btn" id="send-sub">Subtitle Saja</button>
+  <!-- MEDIA SOURCE & CONFIGURATION CARD -->
+  <div class="card" id="media-card">
+    <div class="card-title">
+      <span>🎬 Media Terdeteksi</span>
+      <button id="btn-refresh" class="btn-sm" style="flex:none; padding:3px 10px; font-size:10px; background:#2a0b12; border:1px solid #75142a; color:#ff8fa3;" title="Pindai ulang media pada halaman web yang sedang aktif">🔍 Pindai Ulang Halaman</button>
     </div>
 
-    <!-- Error/Success status positioned IMMEDIATELY under action buttons -->
-    <div class="action-status" id="sniffer-status" role="alert"></div>
-    
-    <div style="margin-top: 10px;">
-      <button class="btn" id="deep-analysis" style="width:100%; border-color:#d97706; color:#fbbf24;">🔍 Analisis Mendalam DOM</button>
+    <!-- Media preview with thumbnail & title -->
+    <div class="media-preview-box" id="media-preview-container">
+      <img id="media-thumb" class="media-thumb" src="icons/icon128.png" alt="Thumbnail">
+      <div class="media-info">
+        <div id="media-title" class="media-title">Mendeteksi media halaman…</div>
+        <div class="media-meta">
+          <span id="media-duration-tag" class="meta-tag" style="display:none;">-</span>
+          <span id="media-platform-tag" class="meta-tag">Universal</span>
+        </div>
+      </div>
     </div>
-    <div style="margin-top: 10px;">
-      <button class="btn" id="request-permission" style="width:100%; border-color:#15803d; color:#4ade80;">🌐 Izinkan Deteksi Otomatis di Situs Ini</button>
+
+    <!-- Source dropdown (for streaming/HLS sniffer) -->
+    <div id="source-dropdown-group">
+      <label for="media-select">Sumber Stream Terdeteksi</label>
+      <select id="media-select">
+        <option value="">Memindai sumber media…</option>
+      </select>
+      <div class="row-btns" style="margin-bottom:8px;">
+        <button class="btn-sm" id="btn-copy-media">📋 Salin Link</button>
+        <button class="btn-sm" id="btn-preview-media">🔍 Preview Playlist</button>
+      </div>
     </div>
-    
+
+    <!-- Media Type Selector Pills -->
+    <label>Pilihan Unduhan</label>
+    <div class="type-pills">
+      <div class="pill active" id="pill-video" data-type="video">🎬 Video</div>
+      <div class="pill" id="pill-audio" data-type="audio">🎵 Audio</div>
+      <div class="pill" id="pill-sub" data-type="subtitle">📝 Subtitle</div>
+      <div class="pill" id="pill-gallery" data-type="gallery">📦 Galeri / ZIP</div>
+    </div>
+
+    <!-- Gallery / Carousel Info -->
+    <div id="gallery-options-group" style="display:none; background:#14060b; border:1px solid #3d1420; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+      <div style="font-weight:700; color:#86efac; font-size:11px; margin-bottom:2px;">📦 Mode Galeri & Carousel</div>
+      <div style="font-size:10px; color:#ccc; line-height:1.4; margin-bottom:8px;">
+        Pilih opsi unduhan untuk postingan banyak slide/foto (Instagram Carousel, Reddit, dll):
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+          <input type="radio" name="gallery-mode" id="gal-mode-zip" value="zip" checked style="width:auto; margin:0;">
+          <span>📦 Semua Slide (Paket .ZIP)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+          <input type="radio" name="gallery-mode" id="gal-mode-files" value="files" style="width:auto; margin:0;">
+          <span>📂 Semua Slide (File Foto/Video Terpisah)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+          <input type="radio" name="gallery-mode" id="gal-mode-single" value="single" style="width:auto; margin:0;">
+          <span>🖼️ Hanya 1 Gambar / Slide Tertentu</span>
+        </label>
+      </div>
+
+      <!-- Slide selector box (muncul jika Hanya 1 Gambar / Slide dipilih) -->
+      <div id="slide-selector-box" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #3d1420;">
+        <label for="slide-number-select" style="font-size:10px; color:#ff8fa3; margin-bottom:4px; display:block;">Pilih Nomor Slide / Foto:</label>
+        <select id="slide-number-select" style="width:100%; font-size:11px; padding:4px 8px; background:#000; border:1px solid #4a1525; color:#fff; border-radius:4px;">
+          <option value="1">Slide 1 (Foto Pertama)</option>
+          <option value="2">Slide 2</option>
+          <option value="3">Slide 3</option>
+          <option value="4">Slide 4</option>
+          <option value="5">Slide 5</option>
+          <option value="6">Slide 6</option>
+          <option value="7">Slide 7</option>
+          <option value="8">Slide 8</option>
+          <option value="9">Slide 9</option>
+          <option value="10">Slide 10</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Video Quality Options -->
+    <div id="video-options-group">
+      <label for="video-quality">Kualitas Video</label>
+      <select id="video-quality">
+        <option value="best">Kualitas Terbaik (Otomatis)</option>
+        <option value="1080">1080p Full HD</option>
+        <option value="720">720p HD (Standar)</option>
+        <option value="480">480p Hemat Kuota</option>
+      </select>
+    </div>
+
+    <!-- Audio Format Options -->
+    <div id="audio-options-group" style="display:none;">
+      <label for="audio-format">Format Audio</label>
+      <select id="audio-format">
+        <option value="mp3">MP3 (Universal 320k)</option>
+        <option value="m4a">M4A (Apple AAC)</option>
+        <option value="flac">FLAC (Lossless High-Fi)</option>
+        <option value="wav">WAV (Audio Tanpa Kompresi)</option>
+      </select>
+    </div>
+
+    <!-- Subtitle Options -->
+    <div id="subtitle-options-group">
+      <label for="subtitle-select">Subtitle Pendamping</label>
+      <select id="subtitle-select">
+        <option value="">Tanpa subtitle tambahan</option>
+      </select>
+      <div style="margin-bottom: 8px;">
+        <button type="button" class="btn-sm" id="btn-copy-sub" style="width:100%; padding:4px 8px; font-size:11px;">📋 Salin Link Subtitle</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+        <input type="checkbox" id="embed-subs" checked style="width:auto; margin:0;">
+        <label for="embed-subs" style="margin:0; font-size:11px; cursor:pointer;">Tanam subtitle langsung ke dalam video (.mkv / .mp4)</label>
+      </div>
+    </div>
+
+    <!-- MAIN DOWNLOAD BUTTON -->
+    <button class="btn-hero" id="btn-download-main">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      <span>Unduh Sekarang</span>
+    </button>
+    <div class="action-status" id="action-status" role="alert"></div>
+    <div id="uncertain-box" style="display:none; margin-top:8px; background:#2a1105; border:1px solid #78350f; padding:8px 10px; border-radius:8px;">
+      <div style="font-size:10px; color:#fdba74; margin-bottom:6px; line-height:1.4;">⚠️ Status pengiriman sebelumnya tidak pasti (Timeout). Server mungkin sudah menerima atau sedang memproses tugas. Kirim ulang hanya jika Anda yakin ingin memproses ulang dengan risiko duplikasi.</div>
+      <button class="btn-sm" id="btn-force-resubmit" style="width:100%; background:#451a03; color:#fde047; border-color:#b45309;">Kirim Ulang Paksa (Risiko Duplikasi)</button>
+    </div>
+
+    <!-- ADVANCED OPTIONS (COLLAPSIBLE) -->
     <details>
-      <summary>Opsi Lanjutan</summary>
-      <label for="name">Nama File Khusus</label>
-      <input id="name" placeholder="Biarkan kosong untuk otomatis">
-      <div class="row-btns" style="margin-top:8px">
-        <button class="btn" id="refresh">🔄 Perbarui Daftar</button>
-        <button class="btn" id="clear">🗑️ Bersihkan</button>
+      <summary>⚙️ Opsi Lanjutan & Pemotongan</summary>
+      <div style="margin-top:6px;">
+        <label for="custom-name">Nama File Khusus</label>
+        <input id="custom-name" placeholder="Biarkan kosong untuk otomatis">
+
+        <label>Potong Durasi (Opsional)</label>
+        <div style="display:flex; gap:6px;">
+          <input id="time-start" placeholder="Mulai (00:00:00)" style="flex:1;">
+          <input id="time-end" placeholder="Selesai (00:02:30)" style="flex:1;">
+        </div>
+
+        <label for="preset-select">Preset Pintar</label>
+        <select id="preset-select">
+          <option value="">Bawaan (Kualitas Penuh)</option>
+          <option value="mobile">Format Mobile 720p</option>
+          <option value="smallest">Paling Ringan (480p)</option>
+          <option value="audio_only">Hanya Audio MP3</option>
+        </select>
+
+        <div style="display:flex; align-items:center; gap:6px; margin:8px 0;">
+          <input type="checkbox" id="prefer-zip" style="width:auto; margin:0;">
+          <label for="prefer-zip" style="margin:0; font-size:11px; cursor:pointer;">Unduh sebagai arsip ZIP jika ada banyak file</label>
+        </div>
+
+        <button class="btn-sm" id="btn-deep-dom" style="width:100%; margin-top:4px;">🔍 Analisis Mendalam DOM Video</button>
+      </div>
+    </details>
+
+    <!-- DOWNLOAD HISTORY (COLLAPSIBLE) -->
+    <details id="details-history">
+      <summary>📂 Riwayat Unduhan Lokal</summary>
+      <div id="history-list" style="margin-top:6px; max-height:140px; overflow-y:auto;">
+        <div style="color:#666; font-size:10px;">Belum ada riwayat unduhan.</div>
       </div>
     </details>
   </div>
 
-  <div class="card" style="padding:10px 14px">
-    <h2 class="card-title" style="margin-bottom:4px">🍪 Cookie Sync (Instagram/TikTok/YT)</h2>
-    <button class="btn" id="sync-cookies" style="width:100%; padding:7px; font-size:11px;">Paksa Sinkronisasi Cookie</button>
-    <div class="action-status" id="sync-status" role="alert"></div>
+  <!-- COOKIE SYNC (OPT-IN) -->
+  <details class="card" style="padding:10px 14px;">
+    <summary style="margin:0; font-size:11px;">🍪 Sinkronisasi Cookie Akun (Opt-In)</summary>
+    <div style="margin-top:8px;">
+      <p style="font-size:10px; color:#888; margin:0 0 8px 0;">
+        Kirim cookie situs yang sedang dibuka ke server untuk membuka video yang memerlukan izin login.
+      </p>
+      <button class="btn-sm" id="btn-sync-cookies" style="width:100%;">Sinkronkan Cookie Tab Ini</button>
+      <div class="action-status" id="cookie-status"></div>
+    </div>
+  </details>
+
+  <!-- MODAL PREVIEW SNIPPET -->
+  <div id="preview-modal">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong id="preview-modal-title" style="color:#ffb3c1; font-size:12px;">Cuplikan Stream</strong>
+        <button class="btn-sm" id="btn-close-preview" style="flex:none; padding:2px 8px;">✕ Tutup</button>
+      </div>
+      <pre><code id="preview-modal-content">Memuat…</code></pre>
+      <button class="btn-sm" id="btn-copy-preview">📋 Salin Seluruh Cuplikan</button>
+    </div>
   </div>
 
-  <div class="footer-links">
-    <button id="settings">⚙️ Pengaturan Token</button>
-    <a href="#" id="open-app">Buka Dashboard (dw.pmlab.id)</a>
-  </div>
-  <div style="text-align:center; margin-top:12px;">
-    <span style="font-size:10px; color:#555;">OmniFetch Companion v<span id="current-version">2.0.3</span> &bull; dw.pmlab.id</span>
-  </div>
+  <footer>
+    <button id="btn-open-options">⚙️ Pengaturan</button>
+    <a href="#" id="link-dashboard">Buka Dashboard</a>
+  </footer>
 
   <script src="popup.js" type="module"></script>
 </body>
