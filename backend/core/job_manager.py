@@ -1,3 +1,4 @@
+from __future__ import annotations
 import threading
 import uuid
 import time
@@ -6,7 +7,7 @@ import re
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 
 from . import config
 from .storage import save_metadata, read_metadata, ensure_job_zip, get_job_files
