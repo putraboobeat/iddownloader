@@ -5,7 +5,10 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "omnifetch-companion@dw.pmlab.id",
-      "strict_min_version": "121.0"
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "description": "Asisten pintar untuk mengunduh video dari Instagram, YouTube, TikTok, Twitter, dan ribuan situs lainnya.",
@@ -29,6 +32,7 @@
     "cookies"
   ],
   "background": {
+    "scripts": ["background/main.js"],
     "service_worker": "background/main.js",
     "type": "module"
   },
