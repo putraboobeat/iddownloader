@@ -2,6 +2,7 @@ import { BASE_URL, Config } from './background/config.js';
 import { Detector } from './background/detector.js';
 import { createZipBlob } from './utils/zip.js';
 import { cleanMovieTitle, getCleanDisplayTitle } from './utils/title.js';
+import { convertVttToSrt } from './utils/subtitle.js';
 
 const $ = id => document.getElementById(id);
 let currentTab = null;
@@ -1132,8 +1133,43 @@ async function triggerDownload(isForced = false) {
             payload.audio_quality = '0';
         } else if (selectedMediaType === 'subtitle') {
             payload.mode = 'subtitle';
-            const subUrl = $('subtitle-select')?.value;
-            if (subUrl && subUrl !== '__NONE__') payload.urls = subUrl;
+            const subUrl = $('subtitle-select')?.value || (selectedCandidate?.kind === 'subtitle' ? selectedCandidate.url : null);
+            if (subUrl && subUrl !== '__NONE__') {
+                payload.urls = subUrl;
+                // Coba unduh & konversi langsung di browser terlebih dahulu (instan & tanpa blokir IP VPS)
+                try {
+                    btn.querySelector('span').textContent = 'Mengunduh Subtitle…';
+                    showStatus('loading', 'Mengunduh subtitle langsung dari browser…');
+                    const subRes = await fetch(subUrl);
+                    if (subRes.ok) {
+                        const rawText = await subRes.text();
+                        if (rawText && (rawText.includes('WEBVTT') || rawText.includes('-->') || rawText.includes('[Script Info]'))) {
+                            const srtText = convertVttToSrt(rawText) || rawText;
+                            const blob = new Blob([srtText], { type: 'text/plain;charset=utf-8' });
+                            const blobUrl = URL.createObjectURL(blob);
+                            const cleanTitle = sanitize(mediaTitle || 'Subtitle');
+                            const filename = `OmniFetch/${cleanTitle}/${cleanTitle}.srt`;
+
+                            chrome.downloads.download({
+                                url: blobUrl,
+                                filename: filename,
+                                conflictAction: 'uniquify',
+                                saveAs: false
+                            }, (dlId) => {
+                                btn.disabled = false;
+                                isSubmitting = false;
+                                btn.querySelector('span').textContent = 'Unduh Sekarang';
+                                if (!chrome.runtime.lastError && dlId) {
+                                    showStatus('success', `✅ Subtitle berhasil disimpan ke ${filename}!`);
+                                }
+                            });
+                            return;
+                        }
+                    }
+                } catch (bErr) {
+                    console.log('Direct browser subtitle fetch fallback to server:', bErr);
+                }
+            }
         } else if (selectedMediaType === 'gallery') {
             payload.media_type = 'video';
             payload.resolution = 'best';
