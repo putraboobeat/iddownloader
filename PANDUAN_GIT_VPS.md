@@ -1,4 +1,4 @@
-cd ~/idxdownloader && git pull origin main && pm2 restart iddownloader
+cd ~/iddownloader && git pull origin main && pm2 restart iddownloader
 
 
 # Panduan Lengkap Workflow Git: Lokal (Mac) ➔ GitHub ➔ VPS

@@ -371,7 +371,17 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
             self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
             if safe_path.suffix == '.zip':
-                self.send_header('Content-Disposition', f'attachment; filename="{safe_path.name}"')
+                download_name = safe_path.name
+                if path == '/extension.zip' or 'companion' in safe_path.name.lower() or safe_path.name == 'extension.zip':
+                    manifest_file = config.BASE_DIR / 'chrome-extension' / 'manifest.json'
+                    v = '2.1.4'
+                    if manifest_file.exists():
+                        try:
+                            v = json.loads(manifest_file.read_text()).get('version', v)
+                        except Exception:
+                            pass
+                    download_name = f"OmniFetch-Companion-v{v}.zip"
+                self.send_header('Content-Disposition', f'attachment; filename="{download_name}"')
             self.end_headers()
             self.wfile.write(content)
         except Exception:
