@@ -897,9 +897,11 @@ Return Code: {job.process.returncode if job.process else 'N/A'}
 
     def serve_static(self, path: str):
         if path == '/':
+            path = '/index.html'
+        elif path in ('/library', '/pustaka'):
             path = '/library.html'
         elif path == '/downloader':
-            path = '/downloader.html'
+            path = '/index.html'
         elif path == '/admin':
             path = '/admin.html'
         elif path == '/features':

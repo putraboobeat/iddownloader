@@ -1854,13 +1854,14 @@
                 <button type="button" class="nav-link active" id="nav-universal"><svg>
                         <use href="#i-globe" />
                     </svg>Downloader Universal</button>
-                <button type="button" class="nav-link" id="nav-library"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>Perpustakaan Pribadi</button>
+                <a href="/library.html" class="nav-link" id="nav-library" title="Perpustakaan Streaming Pribadi"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>Perpustakaan Pribadi</a>
                 <button type="button" class="nav-link" id="nav-guide"><svg>
                         <use href="#i-book" />
                     </svg>Chrome Extension</button>
                 <a href="/features" class="nav-link"><svg>
                         <use href="#i-zap" />
                     </svg>Fitur Lengkap</a>
+                <a href="/admin.html" class="nav-link" id="nav-admin" title="Panel Administrasi Super Admin" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 700;"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>Super Admin</a>
             </nav>
 
         </header>
@@ -2825,7 +2826,7 @@
         $('nav-stream').onclick = () => switchSubmenu('stream');
         $('nav-universal').onclick = () => switchSubmenu('universal');
         if ($('nav-guide')) $('nav-guide').onclick = () => switchSubmenu('guide');
-        if ($('nav-library')) $('nav-library').onclick = () => switchSubmenu('library');
+        if ($('nav-library')) $('nav-library').onclick = () => { window.location.href = '/library.html'; };
         if ($('hero-nav-stream')) $('hero-nav-stream').onclick = () => switchSubmenu('stream');
         if ($('hero-nav-universal')) $('hero-nav-universal').onclick = () => switchSubmenu('universal');
 
